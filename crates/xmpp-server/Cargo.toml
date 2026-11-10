@@ -1,0 +1,19 @@
+[package]
+name = "xmpp-server"
+description = "Client-to-server (c2s) XMPP server with STARTTLS, SASL PLAIN and stanza routing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+argon2 = "0.6.0"
+getrandom = "0.4.3"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "fs"] }
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring", "logging", "tls12"] }
+xmpp-core.workspace = true
+
+[dev-dependencies]
+rcgen = "0.14.10"
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "io-util"] }
+xmpp-client = { path = "../xmpp-client" }
