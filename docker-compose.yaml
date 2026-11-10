@@ -1,0 +1,19 @@
+# Local environment: `docker compose up --build`.
+# First, generate the certificate (scripts/dev-cert.sh) and create accounts:
+#   docker compose run --rm -T xmpp adduser alice <<< 'password'
+services:
+  xmpp:
+    build: .
+    environment:
+      XMPP_DOMAIN: ${XMPP_DOMAIN:-localhost}
+    ports:
+      - "5222:5222"
+    volumes:
+      # The domain's certificate and key (read-only).
+      - ./certs:/etc/xmpp:ro
+      # The accounts file survives container re-creation.
+      - xmpp-data:/var/lib/xmpp
+    restart: unless-stopped
+
+volumes:
+  xmpp-data:

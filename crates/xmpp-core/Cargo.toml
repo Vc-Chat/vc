@@ -1,0 +1,15 @@
+[package]
+name = "xmpp-core"
+description = "XMPP protocol primitives (RFC 6120/7622): JIDs, streaming XML and stanzas"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64 = "0.23.1"
+quick-xml = { version = "0.42.0", features = ["async-tokio"] }
+tokio = { version = "1.54.1", features = ["io-util"] }
+
+[dev-dependencies]
+tokio = { version = "1.54.1", features = ["macros", "rt"] }

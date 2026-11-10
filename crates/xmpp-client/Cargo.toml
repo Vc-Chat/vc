@@ -1,0 +1,13 @@
+[package]
+name = "xmpp-client"
+description = "Minimal XMPP client (library + CLI) to talk to xmpp-server or any XMPP server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "io-util", "io-std"] }
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring", "logging", "tls12"] }
+webpki-roots = "1.0.11"
+xmpp-core.workspace = true
