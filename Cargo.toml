@@ -1,6 +1,21 @@
-[package]
-name = "vc"
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
 
-[dependencies]
+[workspace.dependencies]
+xmpp-core = { path = "crates/xmpp-core" }
+xmpp-client = { path = "crates/xmpp-client" }
+xmpp-server = { path = "crates/xmpp-server" }
+
+# Argon2 in debug mode is orders of magnitude slower; we optimize just that
+# crate so `cargo test` does not take seconds per login.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3
