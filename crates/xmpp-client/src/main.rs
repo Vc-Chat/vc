@@ -16,8 +16,7 @@ use std::io;
 use std::process::ExitCode;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio_rustls::rustls::pki_types::{CertificateDer, pem::PemObject};
-use xmpp_client::{Client, tls_config};
+use xmpp_client::{Client, load_ca, tls_config};
 use xmpp_core::{Element, Event, Jid, STREAM_CLOSE, ns};
 
 #[tokio::main]
@@ -38,9 +37,7 @@ async fn run() -> io::Result<()> {
     let addr = args.next();
     let password = std::env::var("XMPP_PASSWORD").map_err(|_| usage())?;
     let extra_roots = match std::env::var("XMPP_CA") {
-        Ok(path) => CertificateDer::pem_file_iter(&path)
-            .and_then(|certs| certs.collect::<Result<Vec<_>, _>>())
-            .map_err(|e| io::Error::other(format!("{path}: {e}")))?,
+        Ok(path) => load_ca(path.as_ref())?,
         Err(_) => Vec::new(),
     };
 
