@@ -6,6 +6,7 @@
 //! ejabberd, ...).
 
 use std::io;
+use std::path::Path;
 use std::sync::Arc;
 
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
@@ -14,7 +15,7 @@ use tokio_rustls::TlsConnector;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::rustls::{
     self,
-    pki_types::{CertificateDer, ServerName},
+    pki_types::{CertificateDer, ServerName, pem::PemObject},
 };
 use xmpp_core::{Element, Event, Jid, XmlReader, ns, sasl, stream_header};
 
@@ -48,6 +49,14 @@ pub fn tls_config(
         .with_root_certificates(roots)
         .with_no_client_auth();
     Ok(Arc::new(config))
+}
+
+/// Reads every certificate in a PEM file, e.g. the development server's
+/// self-signed certificate, to be passed to [`tls_config`] as an extra root.
+pub fn load_ca(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
+    CertificateDer::pem_file_iter(path)
+        .and_then(|certs| certs.collect::<Result<Vec<_>, _>>())
+        .map_err(|e| io::Error::other(format!("{}: {e}", path.display())))
 }
 
 impl Client {

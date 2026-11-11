@@ -1,0 +1,13 @@
+[package]
+name = "vc-gui"
+description = "Discord-like desktop chat client built with GTK 4 on top of the XMPP crates"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+xmpp-core.workspace = true
+xmpp-client.workspace = true
+gtk = { version = "0.11.5", package = "gtk4", features = ["v4_12"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "sync", "io-util"] }
