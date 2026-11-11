@@ -1,0 +1,311 @@
+/* vc stylesheet.
+ *
+ * The palette is prepended at runtime by `Theme` (main.rs) as GTK named
+ * colors, so the same rules serve the light and the dark theme:
+ *   @accent  #F5789A in both themes: outlines, hover, selection, buttons
+ *   @bg      main background (#2B2D31 dark / #FFFFFF light)
+ *   @sidebar @rail @surface @border @text @muted: neutrals around @bg
+ */
+
+window {
+  background-color: @bg;
+  color: @text;
+}
+
+selection {
+  background-color: alpha(@accent, 0.35);
+}
+
+/* ---------- Inputs: accent border on hover and focus ---------- */
+
+entry {
+  background-color: @surface;
+  color: @text;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  box-shadow: none;
+  outline: none;
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+entry:hover {
+  border-color: alpha(@accent, 0.6);
+}
+
+entry:focus-within {
+  border-color: @accent;
+  box-shadow: 0 0 0 2px alpha(@accent, 0.3);
+}
+
+entry:disabled {
+  opacity: 0.6;
+}
+
+entry.error {
+  border-color: #F23F43;
+}
+
+entry > text > placeholder {
+  color: @muted;
+}
+
+/* ---------- Buttons ---------- */
+
+button.primary {
+  background: @accent;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  box-shadow: none;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+button.primary:hover {
+  background: shade(@accent, 1.08);
+}
+
+button.primary:active {
+  background: shade(@accent, 0.9);
+}
+
+button.primary:disabled {
+  opacity: 0.6;
+}
+
+button.icon {
+  background: transparent;
+  color: @muted;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  box-shadow: none;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  font-size: 16px;
+}
+
+button.icon:hover {
+  color: @accent;
+  border-color: @accent;
+  background: alpha(@accent, 0.12);
+}
+
+/* ---------- Login ---------- */
+
+.login-page {
+  background-color: @rail;
+}
+
+.card {
+  background-color: @bg;
+  border: 1px solid alpha(@accent, 0.35);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 8px 24px alpha(black, 0.25);
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: @muted;
+  margin-bottom: 4px;
+}
+
+.field-label {
+  color: @muted;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.error-text {
+  color: #F23F43;
+}
+
+/* ---------- Server rail ---------- */
+
+.rail {
+  background-color: @rail;
+  padding: 12px;
+}
+
+/* Circle that becomes a rounded square on hover/selection, like Discord. */
+.rail-item {
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 24px;
+  background-color: @surface;
+  color: @text;
+  font-weight: 800;
+  transition: all 150ms ease-out;
+}
+
+.rail-item:hover,
+.rail-item.active {
+  border-radius: 16px;
+  background-color: @accent;
+  color: #FFFFFF;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  background-color: @sidebar;
+  min-width: 240px;
+}
+
+.sidebar-header {
+  padding: 10px;
+  border-bottom: 1px solid @border;
+}
+
+entry.search {
+  min-height: 28px;
+  border-radius: 4px;
+  background-color: @rail;
+  font-size: 13px;
+}
+
+.section {
+  color: @muted;
+  font-size: 11px;
+  font-weight: 700;
+  margin: 16px 16px 4px 16px;
+}
+
+list.conversations {
+  background: transparent;
+  padding: 0 8px;
+}
+
+list.conversations > row {
+  color: @muted;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 1px 0;
+}
+
+list.conversations > row:hover {
+  color: @text;
+  background-color: alpha(@accent, 0.12);
+  border-color: alpha(@accent, 0.5);
+}
+
+list.conversations > row:selected {
+  color: @text;
+  background-color: alpha(@accent, 0.22);
+  border-color: @accent;
+}
+
+/* Unread conversation: bold name and an accent bar on the left. */
+list.conversations > row.unread {
+  color: @text;
+  font-weight: 700;
+  box-shadow: inset 3px 0 @accent;
+}
+
+.user-panel {
+  background-color: @rail;
+  padding: 8px;
+}
+
+.user-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.user-status {
+  color: @muted;
+  font-size: 12px;
+}
+
+/* ---------- Avatars ---------- */
+
+.avatar {
+  background-color: @accent;
+  color: #FFFFFF;
+  font-weight: 700;
+  border-radius: 9999px;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.avatar.small {
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 13px;
+}
+
+/* ---------- Chat area ---------- */
+
+.chat-header {
+  min-height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid @border;
+}
+
+.at {
+  color: @muted;
+  font-size: 22px;
+}
+
+.chat-title {
+  font-weight: 700;
+}
+
+.empty {
+  color: @muted;
+}
+
+list.messages {
+  background: transparent;
+  padding: 8px 0 16px 0;
+}
+
+list.messages > row {
+  padding: 6px 16px;
+  border-left: 2px solid transparent;
+}
+
+list.messages > row:hover {
+  background-color: alpha(@accent, 0.06);
+  border-left-color: @accent;
+}
+
+.author {
+  font-weight: 700;
+}
+
+.timestamp {
+  color: @muted;
+  font-size: 11px;
+}
+
+.system {
+  color: @muted;
+  font-style: italic;
+}
+
+.composer-box {
+  padding: 0 16px 24px 16px;
+}
+
+entry.composer {
+  min-height: 44px;
+}
+
+/* ---------- Scrollbars ---------- */
+
+scrollbar slider {
+  background-color: alpha(@muted, 0.5);
+}
+
+scrollbar slider:hover {
+  background-color: @accent;
+}
