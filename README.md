@@ -1,110 +1,112 @@
 # vc
 
-Implementação do protocolo **XMPP** (RFC 6120/6121) em Rust: servidor,
-cliente e as primitivas do protocolo, mais a infra para rodar.
+An implementation of the **XMPP** protocol (RFC 6120/6121) in Rust: server,
+client and the protocol primitives, plus the infrastructure to run them.
 
-| crate | o que é |
+| crate | what it is |
 |---|---|
-| [`xmpp-core`](crates/xmpp-core) | JIDs (RFC 7622), árvore XML, leitor incremental do stream com as restrições de segurança do XMPP, erros de stream/stanza, SASL PLAIN |
-| [`xmpp-server`](crates/xmpp-server) | servidor c2s: STARTTLS obrigatório → SASL PLAIN (senhas em Argon2id) → bind → roteamento de `message`/`presence`/`iq` |
-| [`xmpp-client`](crates/xmpp-client) | biblioteca de cliente + CLI para testar à mão; funciona com qualquer servidor XMPP |
-| [`vc-gui`](crates/vc-gui) | cliente desktop no estilo Discord, em GTK 4, usando o `xmpp-client` |
+| [`xmpp-core`](crates/xmpp-core) | JIDs (RFC 7622), XML tree, incremental stream reader with XMPP's security restrictions, stream/stanza errors, SASL PLAIN |
+| [`xmpp-server`](crates/xmpp-server) | c2s server: mandatory STARTTLS → SASL PLAIN (Argon2id password hashes) → bind → `message`/`presence`/`iq` routing |
+| [`xmpp-client`](crates/xmpp-client) | client library + CLI for manual testing; works with any XMPP server |
+| [`vc-gui`](crates/vc-gui) | Discord-like desktop client in GTK 4, built on `xmpp-client` |
 
-Cada arquivo começa com um comentário explicando a parte do protocolo que
-implementa, com referência às seções da RFC.
+Every file starts with a comment explaining the part of the protocol it
+implements, with references to the RFC sections.
 
-## Rodando localmente
-
-```sh
-scripts/dev-cert.sh                          # certificado autoassinado em ./certs
-echo 'senha-a' | cargo run -p xmpp-server -- adduser alice
-echo 'senha-b' | cargo run -p xmpp-server -- adduser bob
-cargo run -p xmpp-server                     # escuta em 0.0.0.0:5222
-```
-
-Em outros dois terminais:
+## Running locally
 
 ```sh
-XMPP_CA=certs/cert.pem XMPP_PASSWORD=senha-b cargo run -p xmpp-client -- bob@localhost 127.0.0.1:5222
-XMPP_CA=certs/cert.pem XMPP_PASSWORD=senha-a cargo run -p xmpp-client -- alice@localhost 127.0.0.1:5222
+scripts/dev-cert.sh                          # self-signed certificate in ./certs
+echo 'secret-a' | cargo run -p xmpp-server -- adduser alice
+echo 'secret-b' | cargo run -p xmpp-server -- adduser bob
+cargo run -p xmpp-server                     # listens on 0.0.0.0:5222
 ```
 
-No terminal de alice, digite `bob@localhost oi bob`. Linhas começando com `<`
-vão cruas ao servidor, por exemplo
+In two other terminals:
+
+```sh
+XMPP_CA=certs/cert.pem XMPP_PASSWORD=secret-b cargo run -p xmpp-client -- bob@localhost 127.0.0.1:5222
+XMPP_CA=certs/cert.pem XMPP_PASSWORD=secret-a cargo run -p xmpp-client -- alice@localhost 127.0.0.1:5222
+```
+
+In alice's terminal, type `bob@localhost hi bob`. Lines starting with `<` go
+raw to the server, for example
 `<iq type='get' id='1' to='localhost'><ping xmlns='urn:xmpp:ping'/></iq>`.
 
-Clientes XMPP comuns (Gajim, Conversations, Dino...) também conectam, desde
-que confiem no certificado.
+Regular XMPP clients (Gajim, Conversations, Dino...) can connect too, as long
+as they trust the certificate.
 
-## Interface gráfica (vc-gui)
+## Desktop client (vc-gui)
 
-Cliente desktop em GTK 4, todo em Rust, com layout inspirado no Discord:
-barra de servidores, mensagens diretas, chat e tema claro/escuro (botão ☀/☾
-no painel do usuário). Cor de destaque `#F5789A`; fundo `#2B2D31` (escuro) e
-`#FFFFFF` (claro).
+A GTK 4 desktop client, written entirely in Rust, with a Discord-inspired
+layout: server rail, direct messages, chat and a light/dark theme (☀/☾ button
+in the user panel). Accent color `#F5789A`; background `#2B2D31` (dark) and
+`#FFFFFF` (light).
 
 ```sh
 brew install gtk4                 # macOS   (Debian/Ubuntu: apt install libgtk-4-dev)
 cargo run -p vc-gui
 ```
 
-No login, use por exemplo `alice@localhost`, servidor `127.0.0.1:5222` e
-certificado `certs/cert.pem`. Para abrir uma conversa, digite o JID do
-contato na busca da barra lateral e pressione Enter.
+On the login screen, use for example `alice@localhost`, server
+`127.0.0.1:5222` and certificate `certs/cert.pem`. To open a conversation,
+type the contact's JID in the sidebar search field and press Enter.
 
-## Rodando com Docker
+## Running with Docker
 
 ```sh
 scripts/dev-cert.sh
-echo 'senha-a' | docker compose run --rm -T xmpp adduser alice
+echo 'secret-a' | docker compose run --rm -T xmpp adduser alice
 docker compose up --build -d
 ```
 
-As contas ficam no volume `xmpp-data`; o certificado é montado de `./certs`.
+Accounts live in the `xmpp-data` volume; the certificate is mounted from
+`./certs`.
 
-## Configuração
+## Configuration
 
-Variáveis de ambiente do `xmpp-server`:
+`xmpp-server` environment variables:
 
-| variável | padrão | |
+| variable | default | |
 |---|---|---|
-| `XMPP_DOMAIN` | `localhost` | domínio servido (o que vem depois do `@`) |
-| `XMPP_LISTEN` | `0.0.0.0:5222` | endereço c2s |
-| `XMPP_TLS_CERT` / `XMPP_TLS_KEY` | `certs/cert.pem` / `certs/key.pem` | certificado e chave PEM do domínio |
-| `XMPP_USERS` | `users.txt` | contas, uma por linha: `usuario:hash-argon2` |
+| `XMPP_DOMAIN` | `localhost` | served domain (what comes after the `@`) |
+| `XMPP_LISTEN` | `0.0.0.0:5222` | c2s address |
+| `XMPP_TLS_CERT` / `XMPP_TLS_KEY` | `certs/cert.pem` / `certs/key.pem` | the domain's PEM certificate and key |
+| `XMPP_USERS` | `users.txt` | accounts, one per line: `user:argon2-hash` |
 
-## Produção
+## Production
 
-1. **Certificado** de uma CA para o domínio XMPP (ex.: Let's Encrypt para
-   `chat.exemplo.com`); aponte `XMPP_TLS_CERT`/`XMPP_TLS_KEY` para ele.
-2. **DNS**: os clientes descobrem o servidor pelo registro SRV (RFC 6120
-   §3.2). Se o servidor roda no próprio host do domínio, um `A`/`AAAA` basta.
+1. **Certificate** from a CA for the XMPP domain (e.g. Let's Encrypt for
+   `chat.example.com`); point `XMPP_TLS_CERT`/`XMPP_TLS_KEY` to it.
+2. **DNS**: clients discover the server through the SRV record (RFC 6120
+   §3.2). If the server runs on the domain's own host, an `A`/`AAAA` record
+   is enough.
    ```
-   _xmpp-client._tcp.exemplo.com. 3600 IN SRV 5 0 5222 chat.exemplo.com.
+   _xmpp-client._tcp.example.com. 3600 IN SRV 5 0 5222 chat.example.com.
    ```
-3. **Firewall**: liberar TCP 5222.
+3. **Firewall**: open TCP 5222.
 
-## Testes
+## Tests
 
 ```sh
-cargo test     # unitários + ponta a ponta (servidor real, 2 clientes, TLS)
+cargo test     # unit tests + end-to-end (real server, 2 clients, TLS)
 ```
 
-O CI (`.github/workflows/ci.yml`) roda fmt, clippy, testes e o build da imagem.
+CI (`.github/workflows/ci.yml`) runs fmt, clippy, the tests and the image build.
 
-## Cobertura do protocolo
+## Protocol coverage
 
-Implementado: stream XML com XML restrito e limite de 256 KiB por stanza,
-STARTTLS obrigatório, SASL PLAIN, bind de recurso, carimbo de `from`,
-roteamento para full/bare JID com prioridade, erros de stanza e de stream,
-presença entre as conexões da mesma conta, ping (XEP-0199), disco#info
-(XEP-0030), roster vazio.
+Implemented: XML stream with restricted XML and a 256 KiB per-stanza limit,
+mandatory STARTTLS, SASL PLAIN, resource binding, `from` stamping, routing
+to full/bare JIDs with priority, stanza and stream errors, presence among
+the same account's connections, ping (XEP-0199), disco#info (XEP-0030),
+empty roster.
 
-Ainda não (marcado com `ponytail:` no código, onde entraria):
+Not yet (marked with `ponytail:` in the code, where it would go):
 
-- roster persistente e estados de inscrição (RFC 6121 §2-3) — hoje a presença
-  não chega aos contatos;
-- mensagens offline (XEP-0160) e histórico (XEP-0313) — precisam de banco;
-- federação com outros servidores (s2s);
-- SCRAM-SHA-256, TLS direto na porta 5223 (XEP-0368), DNS SRV no cliente;
-- normalização PRECIS completa de JIDs.
+- persistent roster and subscription states (RFC 6121 §2-3) — presence does
+  not reach contacts yet;
+- offline messages (XEP-0160) and history (XEP-0313) — they need a database;
+- federation with other servers (s2s);
+- SCRAM-SHA-256, direct TLS on port 5223 (XEP-0368), DNS SRV in the client;
+- full PRECIS normalization of JIDs.
