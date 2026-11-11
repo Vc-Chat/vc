@@ -8,6 +8,7 @@ cliente e as primitivas do protocolo, mais a infra para rodar.
 | [`xmpp-core`](crates/xmpp-core) | JIDs (RFC 7622), árvore XML, leitor incremental do stream com as restrições de segurança do XMPP, erros de stream/stanza, SASL PLAIN |
 | [`xmpp-server`](crates/xmpp-server) | servidor c2s: STARTTLS obrigatório → SASL PLAIN (senhas em Argon2id) → bind → roteamento de `message`/`presence`/`iq` |
 | [`xmpp-client`](crates/xmpp-client) | biblioteca de cliente + CLI para testar à mão; funciona com qualquer servidor XMPP |
+| [`vc-gui`](crates/vc-gui) | cliente desktop no estilo Discord, em GTK 4, usando o `xmpp-client` |
 
 Cada arquivo começa com um comentário explicando a parte do protocolo que
 implementa, com referência às seções da RFC.
@@ -34,6 +35,22 @@ vão cruas ao servidor, por exemplo
 
 Clientes XMPP comuns (Gajim, Conversations, Dino...) também conectam, desde
 que confiem no certificado.
+
+## Interface gráfica (vc-gui)
+
+Cliente desktop em GTK 4, todo em Rust, com layout inspirado no Discord:
+barra de servidores, mensagens diretas, chat e tema claro/escuro (botão ☀/☾
+no painel do usuário). Cor de destaque `#F5789A`; fundo `#2B2D31` (escuro) e
+`#FFFFFF` (claro).
+
+```sh
+brew install gtk4                 # macOS   (Debian/Ubuntu: apt install libgtk-4-dev)
+cargo run -p vc-gui
+```
+
+No login, use por exemplo `alice@localhost`, servidor `127.0.0.1:5222` e
+certificado `certs/cert.pem`. Para abrir uma conversa, digite o JID do
+contato na busca da barra lateral e pressione Enter.
 
 ## Rodando com Docker
 
