@@ -4,7 +4,7 @@
  * colors, so the same rules serve the light and the dark theme:
  *   @accent  #F5789A in both themes: outlines, hover, selection, buttons
  *   @bg      main background (#2B2D31 dark / #FFFFFF light)
- *   @sidebar @rail @surface @border @text @muted: neutrals around @bg
+ *   @sidebar @rail @surface @text @muted: neutrals around @bg
  */
 
 window {
@@ -16,17 +16,17 @@ selection {
   background-color: alpha(@accent, 0.35);
 }
 
-/* ---------- Inputs: accent border on hover and focus ---------- */
+/* ---------- Inputs: pill-shaped, accent border on hover and focus ---------- */
 
 entry {
   background-color: @surface;
   color: @text;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 9999px;
   box-shadow: none;
   outline: none;
   min-height: 40px;
-  padding: 0 12px;
+  padding: 0 16px;
 }
 
 entry:hover {
@@ -86,10 +86,24 @@ button.icon {
   font-size: 16px;
 }
 
-button.icon:hover {
+button.icon:hover,
+button.round:hover {
   color: @accent;
   border-color: @accent;
   background: alpha(@accent, 0.12);
+}
+
+/* Round tool button next to the DM search, as in the Figma redesign. */
+button.round {
+  background: alpha(@text, 0.05);
+  color: @muted;
+  border: 1px solid alpha(@text, 0.08);
+  border-radius: 9999px;
+  box-shadow: none;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  font-size: 18px;
 }
 
 /* ---------- Login ---------- */
@@ -104,10 +118,6 @@ button.icon:hover {
   border-radius: 12px;
   padding: 32px;
   box-shadow: 0 8px 24px alpha(black, 0.25);
-}
-
-.card entry {
-  border-radius: 12px;
 }
 
 .field-label.required {
@@ -142,6 +152,21 @@ button.icon:hover {
   padding: 12px;
 }
 
+.rail .avatar {
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 15px;
+}
+
+/* Online dot on our avatar; the border cuts it out of the avatar. */
+.status-dot {
+  background-color: #3BA55C;
+  border: 2px solid @rail;
+  border-radius: 9999px;
+  min-width: 10px;
+  min-height: 10px;
+}
+
 /* Circle that becomes a rounded square on hover/selection, like Discord. */
 .rail-item {
   min-width: 48px;
@@ -164,26 +189,34 @@ button.icon:hover {
 
 .sidebar {
   background-color: @sidebar;
-  min-width: 240px;
+  min-width: 260px;
 }
 
-.sidebar-header {
-  padding: 10px;
-  border-bottom: 1px solid @border;
+.tabs {
+  background-color: @bg;
+  min-height: 46px;
+  box-shadow: 0 2px 2px alpha(black, 0.15);
+}
+
+.tab {
+  color: alpha(@text, 0.6);
+  font-weight: 600;
+  padding: 6px 24px;
+  border-radius: 6px;
+}
+
+.tab.active {
+  color: @text;
+  background-color: alpha(@text, 0.1);
+}
+
+.sidebar-tools {
+  padding: 12px 10px;
 }
 
 entry.search {
-  min-height: 28px;
-  border-radius: 4px;
-  background-color: @rail;
-  font-size: 13px;
-}
-
-.section {
-  color: @muted;
-  font-size: 11px;
-  font-weight: 700;
-  margin: 16px 16px 4px 16px;
+  min-height: 36px;
+  background-color: alpha(@text, 0.05);
 }
 
 list.conversations {
@@ -194,9 +227,13 @@ list.conversations {
 list.conversations > row {
   color: @muted;
   border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 6px 8px;
+  border-radius: 9999px;
+  padding: 4px 12px 4px 4px;
   margin: 1px 0;
+}
+
+.dm-name {
+  font-weight: 600;
 }
 
 list.conversations > row:hover {
@@ -211,26 +248,10 @@ list.conversations > row:selected {
   border-color: @accent;
 }
 
-/* Unread conversation: bold name and an accent bar on the left. */
+/* Unread conversation: bright, bold name. */
 list.conversations > row.unread {
   color: @text;
-  font-weight: 700;
-  box-shadow: inset 3px 0 @accent;
-}
-
-.user-panel {
-  background-color: @rail;
-  padding: 8px;
-}
-
-.user-name {
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.user-status {
-  color: @muted;
-  font-size: 12px;
+  font-weight: 800;
 }
 
 /* ---------- Avatars ---------- */
@@ -240,11 +261,6 @@ list.conversations > row.unread {
   color: #FFFFFF;
   font-weight: 700;
   border-radius: 9999px;
-  min-width: 40px;
-  min-height: 40px;
-}
-
-.avatar.small {
   min-width: 32px;
   min-height: 32px;
   font-size: 13px;
@@ -252,15 +268,17 @@ list.conversations > row.unread {
 
 /* ---------- Chat area ---------- */
 
+/* Same color as the rail, as in the Figma redesign. */
 .chat-header {
-  min-height: 48px;
+  background-color: @rail;
+  min-height: 46px;
   padding: 0 16px;
-  border-bottom: 1px solid @border;
 }
 
-.at {
-  color: @muted;
-  font-size: 22px;
+.chat-header .avatar {
+  min-width: 26px;
+  min-height: 26px;
+  font-size: 12px;
 }
 
 .chat-title {
@@ -277,22 +295,41 @@ list.messages {
 }
 
 list.messages > row {
-  padding: 6px 16px;
-  border-left: 2px solid transparent;
+  padding: 2px 16px;
 }
 
-list.messages > row:hover {
-  background-color: alpha(@accent, 0.06);
-  border-left-color: @accent;
-}
-
-.author {
-  font-weight: 700;
-}
-
-.timestamp {
-  color: @muted;
+.date-pill {
+  background-color: alpha(@text, 0.08);
+  color: alpha(@text, 0.7);
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin: 8px 0;
   font-size: 11px;
+  font-weight: 600;
+}
+
+/* iMessage-style bubbles; the squarer bottom corner points at the sender,
+ * standing in for iMessage's tail. */
+.bubble {
+  padding: 8px 14px;
+  border-radius: 18px;
+}
+
+.bubble.mine {
+  background-color: @accent;
+  color: #FFFFFF;
+  border-bottom-right-radius: 4px;
+}
+
+.bubble.mine > selection {
+  background-color: alpha(white, 0.4);
+}
+
+/* A step away from @surface, so it stands out from the background and the
+ * composer in both themes. */
+.bubble.theirs {
+  background-color: mix(@surface, @text, 0.1);
+  border-bottom-left-radius: 4px;
 }
 
 .system {
@@ -301,7 +338,7 @@ list.messages > row:hover {
 }
 
 .composer-box {
-  padding: 0 16px 24px 16px;
+  padding: 4px 16px 16px 16px;
 }
 
 entry.composer {

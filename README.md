@@ -38,10 +38,11 @@ as they trust the certificate.
 
 ## Desktop client (vc-gui)
 
-A GTK 4 desktop client, written entirely in Rust, with a Discord-inspired
-layout: server rail, direct messages, chat and a light/dark theme (☀/☾ button
-in the user panel). Accent color `#F5789A`; background `#2B2D31` (dark) and
-`#FFFFFF` (light).
+A GTK 4 desktop client, written entirely in Rust, with a layout based on the
+"Messages" view of the [Discord Redesign](https://www.figma.com/design/PwWk4KQNnk1sdJD833rNSS/Discord-Redesign--Community-)
+community file in Figma: server rail, direct messages, iMessage-style chat
+bubbles and a light/dark theme (☀/☾ button at the bottom of the rail). Accent
+color `#F5789A`; background `#2B2D31` (dark) and `#FFFFFF` (light).
 
 ```sh
 brew install gtk4                 # macOS   (Debian/Ubuntu: apt install libgtk-4-dev)

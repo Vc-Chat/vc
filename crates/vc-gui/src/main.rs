@@ -38,7 +38,6 @@ const DARK: &str = "
 @define-color sidebar #232428;
 @define-color rail #1E1F22;
 @define-color surface #383A40;
-@define-color border #1E1F22;
 @define-color text #DBDEE1;
 @define-color muted #949BA4;
 ";
@@ -47,7 +46,6 @@ const LIGHT: &str = "
 @define-color sidebar #F2F3F5;
 @define-color rail #E3E5E8;
 @define-color surface #EBEDEF;
-@define-color border #E1E2E4;
 @define-color text #313338;
 @define-color muted #5C5E66;
 ";

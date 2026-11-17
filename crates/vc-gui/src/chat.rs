@@ -1,21 +1,23 @@
-//! Main screen, laid out like Discord's direct messages view:
+//! Main screen, modeled on the "Messages" view of the Discord redesign
+//! community file in Figma, with our palette and iMessage-style bubbles:
 //!
 //! ```text
-//! ┌──────┬────────────────────┬──────────────────────────────────────┐
-//! │ rail │ [find or start DM] │ @ bob@localhost              header  │
-//! │ (vc) │ DIRECT MESSAGES    │                                      │
-//! │      │  (b) bob@localhost │  messages of the selected DM         │
-//! │      │  (c) carol@…       │  (one page per conversation)         │
-//! │      │                    │                                      │
-//! │      │ (a) alice  Online ☀│ [ Message @bob ]            composer │
-//! └──────┴────────────────────┴──────────────────────────────────────┘
+//! ┌──────┬───────────────────────┬───────────────────────────────────┐
+//! │ (vc) │      [Messages]       │ (b) bob                   header  │
+//! │      │ (🔍 find or start) (+)├───────────────────────────────────┤
+//! │      │ ((b) bob            ) │         [November 17, 2026]       │
+//! │      │ ((c) carol          ) │ (hey alice!)                      │
+//! │      │                       │                    (hi bob, sup?) │
+//! │  ☀   │                       │                                   │
+//! │ (a)• │                       │ (Message @bob)          composer  │
+//! └──────┴───────────────────────┴───────────────────────────────────┘
 //! ```
 //!
 //! Each conversation is keyed by the contact's bare JID and owns a sidebar
 //! row plus a message list in a [`gtk::Stack`], so incoming messages land in
 //! the right place even when that conversation is not on screen.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -29,12 +31,14 @@ use crate::net::Command;
 
 pub struct Chat {
     pub root: gtk::Box,
-    me: Jid,
     commands: UnboundedSender<Command>,
     /// DM rows in the sidebar.
     list: gtk::ListBox,
     /// One message page per DM, plus the "empty" page.
     pages: gtk::Stack,
+    /// Header with the avatar and name of the contact on screen.
+    peer: gtk::Box,
+    peer_avatar: gtk::Label,
     title: gtk::Label,
     composer: gtk::Entry,
     conversations: RefCell<HashMap<String, Conversation>>,
@@ -47,34 +51,86 @@ pub struct Chat {
 struct Conversation {
     row: gtk::ListBoxRow,
     messages: gtk::ListBox,
+    /// (year, month, day) of the last message, to date each new day.
+    day: Rc<Cell<Option<(i32, i32, i32)>>>,
 }
 
 impl Chat {
     pub fn new(me: Jid, commands: UnboundedSender<Command>, theme: Theme) -> Rc<Chat> {
         let my_name = me.local.clone().unwrap_or_default();
 
-        // ── Server rail. ponytail: only "home" (direct messages); servers
-        // and channels need group chat (XEP-0045), which the server lacks.
+        // ── Server rail: home on top, theme switch and our avatar at the
+        // bottom. ponytail: only "home" (direct messages); servers and
+        // channels need group chat (XEP-0045), which the server lacks.
         let home = gtk::Label::builder()
             .label("vc")
             .css_classes(["rail-item", "active"])
             .tooltip_text("Direct Messages")
             .build();
+        let theme_button = gtk::Button::builder()
+            .label(theme_icon(&theme))
+            .css_classes(["icon"])
+            .tooltip_text("Toggle light/dark theme")
+            .halign(gtk::Align::Center)
+            .build();
+        let my_avatar = gtk::Overlay::builder()
+            .child(&avatar(&my_name))
+            .tooltip_text(format!("{me}\nOnline"))
+            .halign(gtk::Align::Center)
+            .build();
+        my_avatar.add_overlay(
+            &gtk::Box::builder()
+                .css_classes(["status-dot"])
+                .halign(gtk::Align::End)
+                .valign(gtk::Align::End)
+                .build(),
+        );
         let rail = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
+            .spacing(12)
             .css_classes(["rail"])
             .build();
         rail.append(&home);
+        rail.append(&gtk::Box::builder().vexpand(true).build());
+        rail.append(&theme_button);
+        rail.append(&my_avatar);
 
-        // ── Sidebar: DM search/creation, conversation list and user panel.
-        let search = gtk::Entry::builder()
-            .placeholder_text("Find or start a conversation")
-            .css_classes(["search"])
+        // ── Sidebar: tab bar, DM search/creation and the conversation list.
+        // ponytail: no "Friends" tab; it needs a roster, which the server
+        // does not keep yet.
+        let tabs = gtk::Box::builder().css_classes(["tabs"]).build();
+        tabs.append(
+            &gtk::Label::builder()
+                .label("Messages")
+                .css_classes(["tab", "active"])
+                .hexpand(true)
+                .halign(gtk::Align::Center)
+                .valign(gtk::Align::Center)
+                .build(),
+        );
+
+        let search = gtk::SearchEntry::builder()
+            .placeholder_text("Find or start a chat")
             .tooltip_text("Type a JID (user@domain) and press Enter")
+            .hexpand(true)
             .build();
-        let search_box = gtk::Box::builder().css_classes(["sidebar-header"]).build();
-        search.set_hexpand(true);
-        search_box.append(&search);
+        let new_chat = gtk::Button::builder()
+            .label("+")
+            .css_classes(["round"])
+            .tooltip_text("Start a conversation")
+            .build();
+        new_chat.connect_clicked({
+            let search = search.clone();
+            move |_| {
+                search.grab_focus();
+            }
+        });
+        let tools = gtk::Box::builder()
+            .spacing(8)
+            .css_classes(["sidebar-tools"])
+            .build();
+        tools.append(&search);
+        tools.append(&new_chat);
 
         let list = gtk::ListBox::builder()
             .css_classes(["conversations"])
@@ -86,25 +142,6 @@ impl Chat {
             .hscrollbar_policy(gtk::PolicyType::Never)
             .build();
 
-        let theme_button = gtk::Button::builder()
-            .label(theme_icon(&theme))
-            .css_classes(["icon"])
-            .tooltip_text("Toggle light/dark theme")
-            .valign(gtk::Align::Center)
-            .build();
-        let identity = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        identity.append(&label(&my_name, "user-name"));
-        identity.append(&label("Online", "user-status"));
-        identity.set_hexpand(true);
-        identity.set_tooltip_text(Some(&me.to_string()));
-        let user_panel = gtk::Box::builder()
-            .spacing(8)
-            .css_classes(["user-panel"])
-            .build();
-        user_panel.append(&avatar(&my_name, true));
-        user_panel.append(&identity);
-        user_panel.append(&theme_button);
-
         // Explicit `hexpand(false)`: in GTK 4 a child's hexpand (the search
         // entry) propagates to its parent, and the sidebar would steal half
         // of the window from the chat area.
@@ -112,21 +149,20 @@ impl Chat {
             .orientation(gtk::Orientation::Vertical)
             .css_classes(["sidebar"])
             .hexpand(false)
-            .width_request(240)
+            .width_request(260)
             .build();
-        sidebar.append(&search_box);
-        sidebar.append(&label("DIRECT MESSAGES", "section"));
+        sidebar.append(&tabs);
+        sidebar.append(&tools);
         sidebar.append(&list_scroll);
-        sidebar.append(&user_panel);
 
         // ── Chat area: header, message pages and composer.
+        let peer_avatar = avatar("");
         let title = label("", "chat-title");
-        let header = gtk::Box::builder()
-            .spacing(8)
-            .css_classes(["chat-header"])
-            .build();
-        header.append(&label("@", "at"));
-        header.append(&title);
+        let peer = gtk::Box::builder().spacing(10).visible(false).build();
+        peer.append(&peer_avatar);
+        peer.append(&title);
+        let header = gtk::Box::builder().css_classes(["chat-header"]).build();
+        header.append(&peer);
 
         let pages = gtk::Stack::builder().vexpand(true).build();
         let empty = gtk::Label::builder()
@@ -160,10 +196,11 @@ impl Chat {
 
         let chat = Rc::new(Chat {
             root,
-            me,
             commands,
             list,
             pages,
+            peer,
+            peer_avatar,
             title,
             composer,
             conversations: RefCell::default(),
@@ -208,9 +245,7 @@ impl Chat {
     /// A message arrived from `from` (bare JID).
     pub fn incoming(&self, from: &str, body: &str) {
         let conversation = self.conversation(from);
-        conversation
-            .messages
-            .append(&message_row(local_part(from), body));
+        conversation.push(&bubble(body, false));
         if self.current.borrow().as_deref() != Some(from) {
             conversation.row.add_css_class("unread");
         }
@@ -221,7 +256,7 @@ impl Chat {
         let text =
             format!("Message not delivered ({condition}): {to} is offline or does not exist.");
         let note = label(&text, "system");
-        self.conversation(to).messages.append(&row(&note));
+        self.conversation(to).push(&row(&note));
     }
 
     /// Opens the conversation with `jid`, creating it on first use.
@@ -236,18 +271,22 @@ impl Chat {
         let Some(conversation) = self.conversations.borrow().get(jid).cloned() else {
             return;
         };
+        let name = local_part(jid);
         conversation.row.remove_css_class("unread");
         self.pages.set_visible_child_name(jid);
-        self.title.set_text(jid);
+        self.peer_avatar.set_label(&initial(name));
+        self.title.set_text(name);
+        self.peer.set_tooltip_text(Some(jid));
+        self.peer.set_visible(true);
         self.composer.set_sensitive(true);
         self.composer
-            .set_placeholder_text(Some(&format!("Message @{}", local_part(jid))));
+            .set_placeholder_text(Some(&format!("Message @{name}")));
         self.composer.grab_focus();
         *self.current.borrow_mut() = Some(jid.to_owned());
     }
 
     /// Sends the composer text to the current conversation and shows it
-    /// right away, as Discord does.
+    /// right away.
     fn send(&self, text: &str) {
         let text = text.trim();
         let Some(to) = self.current.borrow().clone() else {
@@ -262,10 +301,7 @@ impl Chat {
         };
         // A send error means the connection is gone; a `Closed` event follows.
         if self.commands.send(command).is_ok() {
-            let me = self.me.local.as_deref().unwrap_or_default();
-            self.conversation(&to)
-                .messages
-                .append(&message_row(me, text));
+            self.conversation(&to).push(&bubble(text, true));
         }
     }
 
@@ -276,11 +312,14 @@ impl Chat {
             return conversation.clone();
         }
         let entry = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-        entry.append(&avatar(local_part(jid), true));
-        let name = label(jid, "dm-name");
+        entry.append(&avatar(local_part(jid)));
+        let name = label(local_part(jid), "dm-name");
         name.set_ellipsize(pango::EllipsizeMode::End);
         entry.append(&name);
-        let conversation_row = gtk::ListBoxRow::builder().child(&entry).build();
+        let conversation_row = gtk::ListBoxRow::builder()
+            .child(&entry)
+            .tooltip_text(jid)
+            .build();
         // The row's name is how `connect_row_selected` finds the conversation.
         conversation_row.set_widget_name(jid);
         self.list.append(&conversation_row);
@@ -306,6 +345,7 @@ impl Chat {
         let conversation = Conversation {
             row: conversation_row,
             messages,
+            day: Rc::default(),
         };
         self.conversations
             .borrow_mut()
@@ -314,34 +354,69 @@ impl Chat {
     }
 }
 
-/// One chat line: avatar, author, time and text.
-/// ponytail: no Discord-style grouping of consecutive messages from the same
-/// author; add it if long conversations feel too noisy.
-fn message_row(author: &str, body: &str) -> gtk::ListBoxRow {
+impl Conversation {
+    /// Appends a message, preceded by a date pill when it is the first one
+    /// of the day.
+    fn push(&self, message: &gtk::ListBoxRow) {
+        if let Ok(now) = glib::DateTime::now_local() {
+            let day = (now.year(), now.month(), now.day_of_month());
+            if self.day.replace(Some(day)) != Some(day) {
+                let pill = gtk::Label::builder()
+                    .label(day_label(day))
+                    .css_classes(["date-pill"])
+                    .halign(gtk::Align::Center)
+                    .build();
+                self.messages.append(&row(&pill));
+            }
+        }
+        self.messages.append(message);
+    }
+}
+
+/// "November 17, 2026", always in English, whatever the system locale.
+fn day_label((year, month, day): (i32, i32, i32)) -> String {
+    const MONTHS: [&str; 12] = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ];
+    format!("{} {day}, {year}", MONTHS[(month - 1) as usize])
+}
+
+/// One message as an iMessage-style speech bubble: ours on the right in the
+/// accent color, theirs on the left in gray. The time shows on hover.
+/// ponytail: no tighter spacing for consecutive bubbles from the same side;
+/// add it if long conversations feel too loose.
+fn bubble(body: &str, mine: bool) -> gtk::ListBoxRow {
     let time = glib::DateTime::now_local()
         .and_then(|now| now.format("%H:%M"))
         .map(|time| time.to_string())
         .unwrap_or_default();
-    let head = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    head.append(&label(author, "author"));
-    head.append(&label(&time, "timestamp"));
-
     let text = gtk::Label::builder()
         .label(body)
-        .css_classes(["body"])
+        .css_classes(["bubble", if mine { "mine" } else { "theirs" }])
+        .halign(if mine {
+            gtk::Align::End
+        } else {
+            gtk::Align::Start
+        })
         .wrap(true)
         .wrap_mode(pango::WrapMode::WordChar)
+        .max_width_chars(50)
         .selectable(true)
         .xalign(0.0)
+        .tooltip_text(time)
         .build();
-    let column = gtk::Box::new(gtk::Orientation::Vertical, 2);
-    column.append(&head);
-    column.append(&text);
-
-    let line = gtk::Box::new(gtk::Orientation::Horizontal, 16);
-    line.append(&avatar(author, false));
-    line.append(&column);
-    row(&line)
+    row(&text)
 }
 
 /// Non-interactive list row (messages are not selectable as rows).
@@ -353,26 +428,21 @@ fn row(child: &impl IsA<gtk::Widget>) -> gtk::ListBoxRow {
 }
 
 /// Round avatar with the name's first letter (Discord-like placeholder).
-fn avatar(name: &str, small: bool) -> gtk::Label {
-    let initial: String = name
-        .chars()
+fn avatar(name: &str) -> gtk::Label {
+    gtk::Label::builder()
+        .label(initial(name))
+        .css_classes(["avatar"])
+        .valign(gtk::Align::Center)
+        .build()
+}
+
+/// The name's first letter, uppercased.
+fn initial(name: &str) -> String {
+    name.chars()
         .next()
         .into_iter()
         .flat_map(char::to_uppercase)
-        .collect();
-    let avatar = gtk::Label::builder()
-        .label(initial)
-        .css_classes(["avatar"])
-        .valign(if small {
-            gtk::Align::Center
-        } else {
-            gtk::Align::Start
-        })
-        .build();
-    if small {
-        avatar.add_css_class("small");
-    }
-    avatar
+        .collect()
 }
 
 fn label(text: &str, class: &str) -> gtk::Label {
@@ -391,4 +461,10 @@ fn theme_icon(theme: &Theme) -> &'static str {
 /// `bob` from `bob@localhost`.
 fn local_part(jid: &str) -> &str {
     jid.split('@').next().unwrap_or(jid)
+}
+
+#[test]
+fn dates_days_in_english() {
+    assert_eq!(day_label((2026, 11, 17)), "November 17, 2026");
+    assert_eq!(day_label((2024, 1, 2)), "January 2, 2024");
 }
