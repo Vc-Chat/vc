@@ -24,14 +24,14 @@ async fn main() -> ExitCode {
     match run().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("erro: {e}");
+            eprintln!("error: {e}");
             ExitCode::FAILURE
         }
     }
 }
 
 async fn run() -> io::Result<()> {
-    let usage = || io::Error::other("uso: XMPP_PASSWORD=... xmpp-client <jid> [host:porta]");
+    let usage = || io::Error::other("usage: XMPP_PASSWORD=... xmpp-client <jid> [host:port]");
     let mut args = std::env::args().skip(1);
     let jid = Jid::parse(&args.next().ok_or_else(usage)?).map_err(io::Error::other)?;
     let addr = args.next();
@@ -58,7 +58,7 @@ async fn run() -> io::Result<()> {
         while let Ok(Event::Element(stanza)) = reader.next().await {
             show(&stanza);
         }
-        eprintln!("o servidor encerrou o stream");
+        eprintln!("the server closed the stream");
         std::process::exit(0);
     });
 
@@ -75,7 +75,7 @@ async fn run() -> io::Result<()> {
                 .to_string()
         } else {
             if !line.is_empty() {
-                eprintln!("formato: <destinatario> <mensagem>");
+                eprintln!("format: <recipient> <message>");
             }
             continue;
         };
@@ -89,16 +89,16 @@ async fn run() -> io::Result<()> {
 
 /// Shows messages and presences in a readable way; everything else as XML.
 fn show(stanza: &Element) {
-    let from = stanza.get_attr("from").unwrap_or("servidor");
+    let from = stanza.get_attr("from").unwrap_or("server");
     let body = stanza
         .get_child("body", ns::CLIENT)
         .map(Element::text_content);
     match (stanza.name.as_str(), body) {
         ("message", Some(body)) => println!("{from}: {body}"),
         ("presence", _) => match stanza.get_attr("type") {
-            None => println!("* {from} está online"),
+            None => println!("* {from} is online"),
             Some("unavailable") => println!("* {from} ficou offline"),
-            Some(kind) => println!("* {from}: presença {kind}"),
+            Some(kind) => println!("* {from}: presence {kind}"),
         },
         _ => println!("{stanza}"),
     }

@@ -72,9 +72,7 @@ impl Client {
         tls: Arc<rustls::ClientConfig>,
     ) -> io::Result<Client> {
         let Some(user) = jid.local.as_deref() else {
-            return Err(io::Error::other(
-                "o JID precisa de usuário (usuario@dominio)",
-            ));
+            return Err(io::Error::other("the JID needs a user part (user@domain)"));
         };
         let domain = jid.domain.as_str();
         let addr = addr.map_or_else(|| format!("{domain}:5222"), str::to_owned);
@@ -85,11 +83,11 @@ impl Client {
         let features = open_stream(&mut rd, &mut wr, domain).await?;
         if features.get_child("starttls", ns::TLS).is_none() {
             // We never send a password unencrypted, even if the server accepts it.
-            return Err(io::Error::other("o servidor não oferece STARTTLS"));
+            return Err(io::Error::other("the server does not offer STARTTLS"));
         }
         send(&mut wr, &Element::new("starttls", ns::TLS)).await?;
         if !next_element(&mut rd).await?.is("proceed", ns::TLS) {
-            return Err(io::Error::other("o servidor recusou o STARTTLS"));
+            return Err(io::Error::other("the server refused STARTTLS"));
         }
         // TLS handshake on the same socket. The certificate must be valid for
         // the JID's domain — that is what proves we are talking to the right server.
@@ -105,7 +103,7 @@ impl Client {
             .get_child("mechanisms", ns::SASL)
             .is_some_and(|m| m.elements().any(|m| m.text_content() == "PLAIN"));
         if !plain {
-            return Err(io::Error::other("o servidor não oferece SASL PLAIN"));
+            return Err(io::Error::other("the server does not offer SASL PLAIN"));
         }
         let auth = Element::new("auth", ns::SASL)
             .attr("mechanism", "PLAIN")
@@ -115,7 +113,7 @@ impl Client {
         if !outcome.is("success", ns::SASL) {
             // <failure><not-authorized/></failure>: the child tells the reason.
             let reason = outcome.elements().next().map_or("?", |e| e.name.as_str());
-            let msg = format!("autenticação recusada: {reason}");
+            let msg = format!("authentication refused: {reason}");
             return Err(io::Error::new(io::ErrorKind::PermissionDenied, msg));
         }
 
@@ -123,7 +121,9 @@ impl Client {
         let mut rd = rd.restart();
         let features = open_stream(&mut rd, &mut wr, domain).await?;
         if features.get_child("bind", ns::BIND).is_none() {
-            return Err(io::Error::other("o servidor não oferece bind"));
+            return Err(io::Error::other(
+                "the server does not offer resource binding",
+            ));
         }
         let mut bind = Element::new("bind", ns::BIND);
         if let Some(resource) = &jid.resource {
@@ -140,7 +140,7 @@ impl Client {
             .and_then(|bind| bind.get_child("jid", ns::BIND))
             .filter(|_| result.get_attr("type") == Some("result"))
             .map(Element::text_content)
-            .ok_or_else(|| io::Error::other(format!("bind recusado: {result}")))?;
+            .ok_or_else(|| io::Error::other(format!("bind refused: {result}")))?;
         let jid = Jid::parse(&bound).map_err(io::Error::other)?;
         Ok(Client {
             jid,
@@ -179,7 +179,7 @@ async fn open_stream<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
         .await?;
     wr.flush().await?;
     if !matches!(rd.next().await?, Event::Header(_)) {
-        return Err(io::Error::other("o servidor não abriu o stream"));
+        return Err(io::Error::other("the server did not open the stream"));
     }
     let features = next_element(rd).await?;
     if !features.is("features", ns::STREAM) {
@@ -196,7 +196,7 @@ async fn next_element<R: AsyncRead + Unpin>(rd: &mut XmlReader<R>) -> io::Result
         Event::Element(el) => Ok(el),
         _ => Err(io::Error::new(
             io::ErrorKind::UnexpectedEof,
-            "o servidor fechou o stream",
+            "the server closed the stream",
         )),
     }
 }

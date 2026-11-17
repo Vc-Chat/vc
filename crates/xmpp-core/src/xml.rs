@@ -225,12 +225,12 @@ impl Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Io(e) => write!(f, "erro de E/S: {e}"),
-            Error::NotWellFormed(msg) => write!(f, "XML malformado: {msg}"),
-            Error::Restricted(what) => write!(f, "XML proibido no XMPP: {what}"),
-            Error::TooBig => write!(f, "stanza maior que {MAX_STANZA_SIZE} bytes"),
-            Error::BadFormat(msg) => write!(f, "formato de stream inválido: {msg}"),
-            Error::InvalidNamespace => f.write_str("namespace do stream inválido"),
+            Error::Io(e) => write!(f, "I/O error: {e}"),
+            Error::NotWellFormed(msg) => write!(f, "malformed XML: {msg}"),
+            Error::Restricted(what) => write!(f, "XML not allowed in XMPP: {what}"),
+            Error::TooBig => write!(f, "stanza larger than {MAX_STANZA_SIZE} bytes"),
+            Error::BadFormat(msg) => write!(f, "invalid stream format: {msg}"),
+            Error::InvalidNamespace => f.write_str("invalid stream namespace"),
         }
     }
 }
@@ -288,7 +288,7 @@ impl<R: AsyncRead + Unpin> XmlReader<R> {
     pub fn into_inner(self) -> Result<R, Error> {
         let buffered = self.reader.into_inner();
         if !buffered.buffer().is_empty() {
-            return Err(Error::BadFormat("dados recebidos antes do handshake TLS"));
+            return Err(Error::BadFormat("data received before the TLS handshake"));
         }
         Ok(buffered.into_inner().into_inner())
     }
@@ -324,7 +324,7 @@ impl<R: AsyncRead + Unpin> XmlReader<R> {
                         return Err(Error::InvalidNamespace);
                     }
                     if header.name != "stream" {
-                        return Err(Error::BadFormat("o elemento raiz deve ser <stream:stream>"));
+                        return Err(Error::BadFormat("the root element must be <stream:stream>"));
                     }
                     self.in_stream = true;
                     return Ok(Event::Header(header));
@@ -368,15 +368,15 @@ impl<R: AsyncRead + Unpin> XmlReader<R> {
                     let text = match entity.resolve_char_ref() {
                         Ok(Some(c)) => c.to_string(),
                         Ok(None) => resolve_predefined_entity(&entity)
-                            .ok_or(Error::Restricted("entidade não predefinida"))?
+                            .ok_or(Error::Restricted("undefined entity"))?
                             .to_owned(),
                         Err(e) => return Err(Error::NotWellFormed(e.to_string())),
                     };
                     push_text(&mut stack, &text)?;
                 }
-                XmlEvent::Comment(_) => return Err(Error::Restricted("comentário")),
+                XmlEvent::Comment(_) => return Err(Error::Restricted("comment")),
                 XmlEvent::PI(_) | XmlEvent::Decl(_) => {
-                    return Err(Error::Restricted("instrução de processamento"));
+                    return Err(Error::Restricted("processing instruction"));
                 }
                 XmlEvent::DocType(_) => return Err(Error::Restricted("DTD")),
                 XmlEvent::Eof => {
@@ -407,14 +407,12 @@ fn element(resolved: ResolveResult, start: &BytesStart, is_header: bool) -> Resu
         ResolveResult::Bound(ns) => ns.as_ref().to_owned(),
         ResolveResult::Unbound => String::new(),
         ResolveResult::Unknown(prefix) => {
-            return Err(Error::NotWellFormed(format!(
-                "prefixo não declarado: {prefix}"
-            )));
+            return Err(Error::NotWellFormed(format!("undeclared prefix: {prefix}")));
         }
     };
     let local_name = start.local_name();
     if !valid_name(local_name.as_ref()) {
-        return Err(Error::NotWellFormed("nome de elemento inválido".into()));
+        return Err(Error::NotWellFormed("invalid element name".into()));
     }
     let mut el = Element::new(local_name.as_ref(), &ns);
     for attr in start.attributes() {
@@ -426,7 +424,7 @@ fn element(resolved: ResolveResult, start: &BytesStart, is_header: bool) -> Resu
             .map_err(|e| Error::NotWellFormed(e.to_string()))?;
         if !valid_chars(&value) {
             return Err(Error::NotWellFormed(
-                "caractere proibido em atributo".into(),
+                "forbidden character in attribute".into(),
             ));
         }
         // Namespace declarations were already resolved by the NsReader. Only
@@ -447,7 +445,7 @@ fn element(resolved: ResolveResult, start: &BytesStart, is_header: bool) -> Resu
             Some(_) => continue,
         };
         if !valid_name(local) {
-            return Err(Error::NotWellFormed("nome de atributo inválido".into()));
+            return Err(Error::NotWellFormed("invalid attribute name".into()));
         }
         el.attrs.push((key.to_owned(), value.into_owned()));
     }
@@ -471,7 +469,7 @@ fn attach(stack: &mut [Element], el: Element) -> Option<Element> {
 /// between stanzas (allowed and ignored); real text outside a stanza is an error.
 fn push_text(stack: &mut [Element], text: &str) -> Result<bool, Error> {
     if !valid_chars(text) {
-        return Err(Error::NotWellFormed("caractere proibido em texto".into()));
+        return Err(Error::NotWellFormed("forbidden character in text".into()));
     }
     let Some(parent) = stack.last_mut() else {
         return match text
@@ -479,7 +477,7 @@ fn push_text(stack: &mut [Element], text: &str) -> Result<bool, Error> {
             .all(|b| matches!(b, b' ' | b'\t' | b'\r' | b'\n'))
         {
             true => Ok(true),
-            false => Err(Error::BadFormat("texto fora de uma stanza")),
+            false => Err(Error::BadFormat("text outside a stanza")),
         };
     };
     match parent.children.last_mut() {
@@ -534,7 +532,7 @@ mod tests {
             Event::Element(presence),
         ] = &evs[..]
         else {
-            panic!("eventos inesperados: {evs:?}");
+            panic!("unexpected events: {evs:?}");
         };
         assert_eq!(header.get_attr("xmlns"), Some(ns::CLIENT));
         assert_eq!(header.get_attr("to"), Some("x"));

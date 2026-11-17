@@ -1,7 +1,6 @@
-//! Login screen: a centered card, as on Discord, collecting the JID,
-//! password and optional server address / development certificate.
+//! Login screen: a centered card, as on Discord, collecting the JID and
+//! password.
 
-use std::path::PathBuf;
 use std::rc::Rc;
 
 use gtk::prelude::*;
@@ -13,8 +12,6 @@ pub struct Login {
     pub root: gtk::Box,
     jid: gtk::Entry,
     password: gtk::PasswordEntry,
-    server: gtk::Entry,
-    ca: gtk::Entry,
     button: gtk::Button,
     error: gtk::Label,
 }
@@ -25,12 +22,6 @@ impl Login {
             .placeholder_text("alice@localhost")
             .build();
         let password = gtk::PasswordEntry::new();
-        let server = gtk::Entry::builder()
-            .placeholder_text("opcional — ex.: 127.0.0.1:5222")
-            .build();
-        let ca = gtk::Entry::builder()
-            .placeholder_text("opcional — ex.: certs/cert.pem")
-            .build();
         let error = gtk::Label::builder()
             .css_classes(["error-text"])
             .wrap(true)
@@ -38,10 +29,22 @@ impl Login {
             .visible(false)
             .build();
         let button = gtk::Button::builder()
-            .label("Entrar")
+            .label("Log In")
             .css_classes(["primary"])
             .margin_top(8)
             .build();
+
+        let header = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        header.set_margin_bottom(4);
+        for (text, class) in [
+            ("Welcome back!", "title"),
+            ("We're so excited to see you again!", "subtitle"),
+        ] {
+            let line = label(text, class);
+            line.set_xalign(0.5);
+            line.set_justify(gtk::Justification::Center);
+            header.append(&line);
+        }
 
         let card = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -51,15 +54,9 @@ impl Login {
             .valign(gtk::Align::Center)
             .css_classes(["card"])
             .build();
-        card.append(&label("Bem-vindo de volta!", "title"));
-        card.append(&label(
-            "Estamos muito animados em te ver novamente!",
-            "subtitle",
-        ));
-        card.append(&field("JID (USUÁRIO@DOMÍNIO)", &jid));
-        card.append(&field("SENHA", &password));
-        card.append(&field("SERVIDOR", &server));
-        card.append(&field("CERTIFICADO CA (PEM)", &ca));
+        card.append(&header);
+        card.append(&field("JID (USER@DOMAIN)", &jid));
+        card.append(&field("PASSWORD", &password));
         card.append(&error);
         card.append(&button);
 
@@ -75,15 +72,13 @@ impl Login {
             root,
             jid,
             password,
-            server,
-            ca,
             button,
             error,
         })
     }
 
-    /// Calls `on_submit` with the validated form when the user clicks "Entrar"
-    /// or presses Enter in any field.
+    /// Calls `on_submit` with the validated form when the user clicks "Log In"
+    /// or presses Enter in either field.
     pub fn connect_submit(self: &Rc<Self>, on_submit: impl Fn(Credentials) + 'static) {
         let on_submit = Rc::new(on_submit);
         // Weak references: the widgets own these closures (see build_window).
@@ -100,10 +95,10 @@ impl Login {
             let submit = submit.clone();
             move |_| submit()
         });
-        for entry in [&self.jid, &self.server, &self.ca] {
+        self.jid.connect_activate({
             let submit = submit.clone();
-            entry.connect_activate(move |_| submit());
-        }
+            move |_| submit()
+        });
         self.password.connect_activate(move |_| submit());
     }
 
@@ -111,24 +106,15 @@ impl Login {
     fn submit(&self, on_submit: &dyn Fn(Credentials)) {
         let jid = match Jid::parse(self.jid.text().trim()) {
             Ok(jid) if jid.local.is_some() => jid,
-            _ => return self.fail("JID inválido: use o formato usuario@dominio."),
+            _ => return self.fail("Invalid JID: use the user@domain format."),
         };
         let password = self.password.text().to_string();
         if password.is_empty() {
-            return self.fail("Digite a senha.");
+            return self.fail("Enter your password.");
         }
-        let optional = |entry: &gtk::Entry| {
-            let text = entry.text().trim().to_owned();
-            (!text.is_empty()).then_some(text)
-        };
         self.error.set_visible(false);
         self.set_busy(true);
-        on_submit(Credentials {
-            jid,
-            password,
-            server: optional(&self.server),
-            ca: optional(&self.ca).map(PathBuf::from),
-        });
+        on_submit(Credentials { jid, password });
     }
 
     /// Shows an error (validation, connection or disconnection) and
@@ -149,14 +135,27 @@ impl Login {
     fn set_busy(&self, busy: bool) {
         self.button.set_sensitive(!busy);
         self.button
-            .set_label(if busy { "Conectando…" } else { "Entrar" });
+            .set_label(if busy { "Connecting…" } else { "Log In" });
     }
 }
 
-/// Small uppercase label above an input, as in Discord's forms.
+/// Small uppercase label with a red "required" asterisk above an input, as in
+/// Discord's forms.
 fn field(title: &str, input: &impl IsA<gtk::Widget>) -> gtk::Box {
-    let field = gtk::Box::new(gtk::Orientation::Vertical, 6);
-    field.append(&label(title, "field-label"));
+    // No wrapping here: a wrapping label in a horizontal box confuses GTK's
+    // height-for-width measuring.
+    let title = label(title, "field-label");
+    title.set_wrap(false);
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+    header.append(&title);
+    header.append(
+        &gtk::Label::builder()
+            .label("*")
+            .css_classes(["field-label", "required"])
+            .build(),
+    );
+    let field = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    field.append(&header);
     field.append(input);
     field
 }

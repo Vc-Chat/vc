@@ -45,12 +45,13 @@ in the user panel). Accent color `#F5789A`; background `#2B2D31` (dark) and
 
 ```sh
 brew install gtk4                 # macOS   (Debian/Ubuntu: apt install libgtk-4-dev)
-cargo run -p vc-gui
+XMPP_CA=certs/cert.pem cargo run -p vc-gui
 ```
 
-On the login screen, use for example `alice@localhost`, server
-`127.0.0.1:5222` and certificate `certs/cert.pem`. To open a conversation,
-type the contact's JID in the sidebar search field and press Enter.
+The client connects to the JID's domain on port 5222; `XMPP_CA` makes it
+trust the development certificate, as in the CLI. On the login screen, use for
+example `alice@localhost`. To open a conversation, type the contact's JID in
+the sidebar search field and press Enter.
 
 ## Running with Docker
 

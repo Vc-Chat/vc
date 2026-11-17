@@ -29,7 +29,7 @@ pub struct JidError(&'static str);
 
 impl fmt::Display for JidError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "JID inválido: {}", self.0)
+        write!(f, "invalid JID: {}", self.0)
     }
 }
 
@@ -84,12 +84,12 @@ fn check_len(part: &str, what: &'static str) -> Result<(), JidError> {
 /// Localpart (the "user"): no whitespace, control characters, or the
 /// characters reserved by RFC 7622 §3.3.1 — `" & ' / : < > @`.
 fn check_local(local: &str) -> Result<String, JidError> {
-    check_len(local, "localpart vazio ou longo demais")?;
+    check_len(local, "localpart empty or too long")?;
     if local
         .chars()
         .any(|c| c.is_whitespace() || c.is_control() || "\"&'/:<>@".contains(c))
     {
-        return Err(JidError("localpart contém caractere proibido"));
+        return Err(JidError("localpart contains a forbidden character"));
     }
     Ok(local.to_lowercase())
 }
@@ -98,21 +98,21 @@ fn check_local(local: &str) -> Result<String, JidError> {
 /// removed (RFC 7622 §3.2). `:` only appears in bracketed IPv6 literals.
 fn check_domain(domain: &str) -> Result<String, JidError> {
     let domain = domain.strip_suffix('.').unwrap_or(domain);
-    check_len(domain, "domínio vazio ou longo demais")?;
+    check_len(domain, "domain empty or too long")?;
     let ipv6 = domain.starts_with('[') && domain.ends_with(']');
     if domain.chars().any(|c| {
         c.is_whitespace() || c.is_control() || "@/\\<>\"'&".contains(c) || (c == ':' && !ipv6)
     }) {
-        return Err(JidError("domínio contém caractere proibido"));
+        return Err(JidError("domain contains a forbidden character"));
     }
     Ok(domain.to_lowercase())
 }
 
 /// Resource: free text (OpaqueString profile), only without control characters.
 fn check_resource(resource: &str) -> Result<String, JidError> {
-    check_len(resource, "recurso vazio ou longo demais")?;
+    check_len(resource, "resource empty or too long")?;
     if resource.chars().any(char::is_control) {
-        return Err(JidError("recurso contém caractere de controle"));
+        return Err(JidError("resource contains a control character"));
     }
     Ok(resource.to_owned())
 }
@@ -150,6 +150,6 @@ fn parse_normalize_and_reject() {
     for bad in [
         "", "@x", "a@", "x/", "a b@x", "a@b@c", "a@x:5222", "a\u{0}@x",
     ] {
-        assert!(Jid::parse(bad).is_err(), "{bad:?} deveria ser inválido");
+        assert!(Jid::parse(bad).is_err(), "{bad:?} should be invalid");
     }
 }

@@ -153,7 +153,7 @@ pub mod sasl {
             plain_decode(&data),
             Some((String::new(), "alice".into(), "s3nh@".into()))
         );
-        assert_eq!(plain_decode("não é base64"), None);
+        assert_eq!(plain_decode("not base64"), None);
         assert_eq!(plain_decode(&BASE64_STANDARD.encode("sem-nul")), None);
     }
 }

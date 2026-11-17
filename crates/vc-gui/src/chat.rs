@@ -58,7 +58,7 @@ impl Chat {
         let home = gtk::Label::builder()
             .label("vc")
             .css_classes(["rail-item", "active"])
-            .tooltip_text("Mensagens diretas")
+            .tooltip_text("Direct Messages")
             .build();
         let rail = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -68,9 +68,9 @@ impl Chat {
 
         // ── Sidebar: DM search/creation, conversation list and user panel.
         let search = gtk::Entry::builder()
-            .placeholder_text("Buscar ou iniciar conversa")
+            .placeholder_text("Find or start a conversation")
             .css_classes(["search"])
-            .tooltip_text("Digite um JID (usuario@dominio) e pressione Enter")
+            .tooltip_text("Type a JID (user@domain) and press Enter")
             .build();
         let search_box = gtk::Box::builder().css_classes(["sidebar-header"]).build();
         search.set_hexpand(true);
@@ -89,7 +89,7 @@ impl Chat {
         let theme_button = gtk::Button::builder()
             .label(theme_icon(&theme))
             .css_classes(["icon"])
-            .tooltip_text("Alternar tema claro/escuro")
+            .tooltip_text("Toggle light/dark theme")
             .valign(gtk::Align::Center)
             .build();
         let identity = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -115,7 +115,7 @@ impl Chat {
             .width_request(240)
             .build();
         sidebar.append(&search_box);
-        sidebar.append(&label("MENSAGENS DIRETAS", "section"));
+        sidebar.append(&label("DIRECT MESSAGES", "section"));
         sidebar.append(&list_scroll);
         sidebar.append(&user_panel);
 
@@ -130,14 +130,14 @@ impl Chat {
 
         let pages = gtk::Stack::builder().vexpand(true).build();
         let empty = gtk::Label::builder()
-            .label("Escolha uma conversa ou comece uma nova pela busca ao lado.")
+            .label("Pick a conversation or start a new one from the search on the left.")
             .css_classes(["empty"])
             .wrap(true)
             .build();
         pages.add_named(&empty, Some("empty"));
 
         let composer = gtk::Entry::builder()
-            .placeholder_text("Escolha uma conversa")
+            .placeholder_text("Pick a conversation")
             .css_classes(["composer"])
             .sensitive(false)
             .hexpand(true)
@@ -218,7 +218,8 @@ impl Chat {
 
     /// The server bounced a message we sent to `to`.
     pub fn undelivered(&self, to: &str, condition: &str) {
-        let text = format!("Mensagem não entregue ({condition}): {to} está offline ou não existe.");
+        let text =
+            format!("Message not delivered ({condition}): {to} is offline or does not exist.");
         let note = label(&text, "system");
         self.conversation(to).messages.append(&row(&note));
     }
@@ -240,7 +241,7 @@ impl Chat {
         self.title.set_text(jid);
         self.composer.set_sensitive(true);
         self.composer
-            .set_placeholder_text(Some(&format!("Conversar com @{}", local_part(jid))));
+            .set_placeholder_text(Some(&format!("Message @{}", local_part(jid))));
         self.composer.grab_focus();
         *self.current.borrow_mut() = Some(jid.to_owned());
     }

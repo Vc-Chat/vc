@@ -95,7 +95,7 @@ button.icon:hover {
 /* ---------- Login ---------- */
 
 .login-page {
-  background-color: @rail;
+  background-color: @bg;
 }
 
 .card {
@@ -104,6 +104,14 @@ button.icon:hover {
   border-radius: 12px;
   padding: 32px;
   box-shadow: 0 8px 24px alpha(black, 0.25);
+}
+
+.card entry {
+  border-radius: 12px;
+}
+
+.field-label.required {
+  color: #F23F43;
 }
 
 .title {

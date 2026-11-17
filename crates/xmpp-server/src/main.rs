@@ -38,12 +38,12 @@ async fn main() -> ExitCode {
     let result = match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
         [] => serve(&domain, &users).await,
         ["adduser", user] => adduser(&domain, &users, user),
-        _ => Err(io::Error::other("uso: xmpp-server [adduser <usuario>]")),
+        _ => Err(io::Error::other("usage: xmpp-server [adduser <user>]")),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("erro: {e}");
+            eprintln!("error: {e}");
             ExitCode::FAILURE
         }
     }
@@ -56,7 +56,7 @@ async fn serve(domain: &str, users: &str) -> io::Result<()> {
     )?;
     let listen = env("XMPP_LISTEN", "0.0.0.0:5222");
     let listener = TcpListener::bind(&listen).await?;
-    eprintln!("xmpp-server: domínio {domain}, escutando em {listen}");
+    eprintln!("xmpp-server: domain {domain}, listening on {listen}");
     Server::new(domain, users.into(), tls).serve(listener).await;
     Ok(())
 }
@@ -83,22 +83,24 @@ fn adduser(domain: &str, users: &str, user: &str) -> io::Result<()> {
         .ok()
         .filter(|jid| jid.resource.is_none())
         .and_then(|jid| jid.local)
-        .ok_or_else(|| io::Error::other("nome de usuário inválido"))?;
+        .ok_or_else(|| io::Error::other("invalid username"))?;
     let existing = fs::read_to_string(users).unwrap_or_default();
     if existing
         .lines()
         .any(|line| line.split_once(':').is_some_and(|(name, _)| name == user))
     {
-        return Err(io::Error::other(format!("{user} já existe em {users}")));
+        return Err(io::Error::other(format!(
+            "{user} already exists in {users}"
+        )));
     }
     // The password comes from stdin (not from an argument, which would end up
     // in the shell history and be visible in `ps`). Note: the terminal echoes it.
-    eprint!("senha de {user}@{domain}: ");
+    eprint!("password for {user}@{domain}: ");
     let mut password = String::new();
     io::stdin().lock().read_line(&mut password)?;
     let password = password.trim_end_matches(['\r', '\n']);
     if password.is_empty() {
-        return Err(io::Error::other("senha vazia"));
+        return Err(io::Error::other("empty password"));
     }
     // 0600: hashes are not passwords, but there is no reason for other system
     // users to read the file. (Unix only — the server runs on Linux/macOS.)
