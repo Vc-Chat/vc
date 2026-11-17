@@ -5,7 +5,7 @@
 //! the UI into stanzas. The UI never touches sockets, and the network side
 //! never touches widgets (GTK widgets must stay on the main thread).
 
-use std::path::PathBuf;
+use std::path::Path;
 
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -16,10 +16,6 @@ use xmpp_core::{Element, Event as StreamEvent, Jid, STREAM_CLOSE, ns};
 pub struct Credentials {
     pub jid: Jid,
     pub password: String,
-    /// `host:port`; `None` connects to `<domain>:5222`.
-    pub server: Option<String>,
-    /// Extra trusted certificate (PEM), e.g. the development self-signed one.
-    pub ca: Option<PathBuf>,
 }
 
 /// UI → network.
@@ -52,7 +48,7 @@ pub async fn run(
     let client = match connect(&credentials).await {
         Ok(client) => client,
         Err(e) => {
-            let _ = events.send(Event::Closed(format!("Falha ao conectar: {e}")));
+            let _ = events.send(Event::Closed(format!("Could not connect: {e}")));
             return;
         }
     };
@@ -64,7 +60,7 @@ pub async fn run(
     // Initial presence (RFC 6121 §4.2): without it the server does not
     // deliver messages addressed to our bare JID.
     if let Err(e) = send(&mut writer, &Element::new("presence", ns::CLIENT)).await {
-        let _ = events.send(Event::Closed(format!("Conexão perdida: {e}")));
+        let _ = events.send(Event::Closed(format!("Connection lost: {e}")));
         return;
     }
     let _ = events.send(Event::Connected(jid));
@@ -80,8 +76,8 @@ pub async fn run(
                         let _ = incoming.send(event);
                     }
                 }
-                Ok(_) => break "O servidor encerrou a conexão.".to_owned(),
-                Err(e) => break format!("Conexão perdida: {e}"),
+                Ok(_) => break "The server closed the connection.".to_owned(),
+                Err(e) => break format!("Connection lost: {e}"),
             }
         };
         let _ = incoming.send(Event::Closed(reason));
@@ -102,16 +98,17 @@ pub async fn run(
     reading.abort();
 }
 
+/// Connects to `<domain>:5222`. An extra trusted certificate (PEM), such as
+/// the development self-signed one, comes from `XMPP_CA`, as in the CLI.
 async fn connect(credentials: &Credentials) -> std::io::Result<Client> {
-    let roots = match &credentials.ca {
-        Some(path) => load_ca(path)?,
+    let roots = match std::env::var_os("XMPP_CA") {
+        Some(path) => load_ca(Path::new(&path))?,
         None => Vec::new(),
     };
-    let server = credentials.server.as_deref();
     Client::connect(
         &credentials.jid,
         &credentials.password,
-        server,
+        None,
         tls_config(roots)?,
     )
     .await
@@ -134,7 +131,7 @@ fn event_for(stanza: &Element) -> Option<Event> {
         let condition = stanza
             .get_child("error", ns::CLIENT)
             .and_then(|error| error.elements().next())
-            .map_or_else(|| "erro".to_owned(), |c| c.name.clone());
+            .map_or_else(|| "error".to_owned(), |c| c.name.clone());
         return Some(Event::Undelivered {
             to: peer,
             condition,

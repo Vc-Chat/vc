@@ -20,4 +20,4 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
   -keyout "$dir/key.pem" -out "$dir/cert.pem" 2>/dev/null
 # Development only: the container runs as another uid and needs to read the key.
 chmod 644 "$dir/key.pem"
-echo "certificado para '$domain' em $dir (use XMPP_CA=$dir/cert.pem no cliente)"
+echo "certificate for '$domain' in $dir (use XMPP_CA=$dir/cert.pem in the client)"

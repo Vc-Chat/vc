@@ -122,7 +122,7 @@ impl Server {
         let (mut rd, mut wr, session, mut rx) =
             tokio::time::timeout(NEGOTIATION_TIMEOUT, negotiation)
                 .await
-                .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "negociação expirou"))??;
+                .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "negotiation timed out"))??;
 
         // Writer task: drains the queue into the socket. It ends once every
         // `tx` has been dropped — the session's and the routing table's.
@@ -137,7 +137,7 @@ impl Server {
             let _ = wr.shutdown().await;
         });
 
-        eprintln!("sessão iniciada: {}", session.jid);
+        eprintln!("session started: {}", session.jid);
         loop {
             let stanza = match rd.next().await {
                 Ok(Event::Element(stanza)) => stanza,
@@ -153,7 +153,7 @@ impl Server {
                 break;
             }
         }
-        eprintln!("sessão encerrada: {}", session.jid);
+        eprintln!("session ended: {}", session.jid);
 
         // Leave the routing table (see `Drop for Session`) and give the writer
         // task some time to drain the queue and close the stream.
@@ -725,7 +725,7 @@ async fn next_element<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
 async fn fail<W: AsyncWrite + Unpin>(wr: &mut W, condition: &'static str) -> io::Error {
     let _ = write(wr, &format!("{}{STREAM_CLOSE}", stream_error(condition))).await;
     let _ = wr.shutdown().await;
-    io::Error::other(format!("erro de stream enviado ao cliente: {condition}"))
+    io::Error::other(format!("stream error sent to the client: {condition}"))
 }
 
 /// Writes and flushes: TLS may hold bytes in its buffer until the flush.
@@ -738,7 +738,7 @@ async fn write<W: AsyncWrite + Unpin>(wr: &mut W, data: &str) -> io::Result<()> 
 /// unpredictable (RFC 6120 §4.7.3), so they come from the OS RNG.
 fn random_id() -> String {
     let mut bytes = [0u8; 16];
-    getrandom::fill(&mut bytes).expect("RNG do sistema operacional indisponível");
+    getrandom::fill(&mut bytes).expect("operating system RNG unavailable");
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
@@ -755,7 +755,7 @@ pub fn hash_password(password: &str) -> String {
 /// file is re-read on every login: `xmpp-server adduser` takes effect without a restart.
 fn verify_password(file: &Path, user: &str, password: &str) -> bool {
     let users = fs::read_to_string(file).unwrap_or_else(|e| {
-        eprintln!("não consegui ler {}: {e}", file.display());
+        eprintln!("could not read {}: {e}", file.display());
         String::new()
     });
     let hash = users

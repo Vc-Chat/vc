@@ -38,19 +38,23 @@ as they trust the certificate.
 
 ## Desktop client (vc-gui)
 
-A GTK 4 desktop client, written entirely in Rust, with a Discord-inspired
-layout: server rail, direct messages, chat and a light/dark theme (☀/☾ button
-in the user panel). Accent color `#F5789A`; background `#2B2D31` (dark) and
-`#FFFFFF` (light).
+A GTK 4 desktop client, written entirely in Rust, with a layout based on the
+"Messages" view of the [Discord Redesign](https://www.figma.com/design/PwWk4KQNnk1sdJD833rNSS/Discord-Redesign--Community-)
+community file in Figma: server rail, direct messages, iMessage-style chat
+bubbles and a light/dark theme (☀/☾ button at the bottom of the rail). Accent
+color `#F5789A`; background `#2B2D31` (dark) and `#FFFFFF` (light). Icons come
+from the Figma file (`crates/vc-gui/icons`); text uses Open Sans, like the
+design, when it is installed (Debian/Ubuntu: `apt install fonts-open-sans`).
 
 ```sh
 brew install gtk4                 # macOS   (Debian/Ubuntu: apt install libgtk-4-dev)
-cargo run -p vc-gui
+XMPP_CA=certs/cert.pem cargo run -p vc-gui
 ```
 
-On the login screen, use for example `alice@localhost`, server
-`127.0.0.1:5222` and certificate `certs/cert.pem`. To open a conversation,
-type the contact's JID in the sidebar search field and press Enter.
+The client connects to the JID's domain on port 5222; `XMPP_CA` makes it
+trust the development certificate, as in the CLI. On the login screen, use for
+example `alice@localhost`. To open a conversation, type the contact's JID in
+the sidebar search field and press Enter.
 
 ## Running with Docker
 
