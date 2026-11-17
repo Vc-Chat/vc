@@ -2,26 +2,44 @@
  *
  * The palette is prepended at runtime by `Theme` (main.rs) as GTK named
  * colors, so the same rules serve the light and the dark theme:
- *   @accent  #F5789A in both themes: outlines, hover, selection, buttons
+ *   @accent  #F5789A in both themes: selection, buttons, our bubbles
  *   @bg      main background (#2B2D31 dark / #FFFFFF light)
  *   @sidebar @rail @surface @text @muted: neutrals around @bg
+ *   @icon    icons: gray on the dark theme, accent on the light one
+ *
+ * Sizes follow the Discord redesign Figma file, drawn at about 2.37x: 46px
+ * bars, 24px rail icons, 20px header icons, pill-shaped controls, semibold
+ * text. Its translucent whites become alpha(@text, …), so they also work on
+ * the light theme.
  */
 
 window {
   background-color: @bg;
   color: @text;
+  font-family: "Open Sans", "Noto Sans", sans-serif;
+  font-size: 14px;
+}
+
+/* The empty title bar set in main.rs: the theme still gives it a height. */
+window > .titlebar:not(headerbar) {
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+  background: none;
 }
 
 selection {
   background-color: alpha(@accent, 0.35);
 }
 
-/* ---------- Inputs: pill-shaped, accent border on hover and focus ---------- */
+/* ---------- Inputs: pills with a translucent fill and hairline border ---------- */
 
 entry {
-  background-color: @surface;
+  background-color: alpha(@text, 0.05);
   color: @text;
-  border: 1px solid transparent;
+  border: 1px solid alpha(@text, 0.08);
   border-radius: 9999px;
   box-shadow: none;
   outline: none;
@@ -29,13 +47,9 @@ entry {
   padding: 0 16px;
 }
 
-entry:hover {
-  border-color: alpha(@accent, 0.6);
-}
-
+/* No accent outline: focus only firms up the hairline border. */
 entry:focus-within {
-  border-color: @accent;
-  box-shadow: 0 0 0 2px alpha(@accent, 0.3);
+  border-color: alpha(@text, 0.25);
 }
 
 entry:disabled {
@@ -47,7 +61,12 @@ entry.error {
 }
 
 entry > text > placeholder {
-  color: @muted;
+  color: alpha(@text, 0.35);
+  font-weight: 600;
+}
+
+entry > image {
+  color: @icon;
 }
 
 /* ---------- Buttons ---------- */
@@ -56,7 +75,7 @@ button.primary {
   background: @accent;
   color: #FFFFFF;
   border: none;
-  border-radius: 8px;
+  border-radius: 9999px;
   box-shadow: none;
   min-height: 44px;
   font-weight: 700;
@@ -74,36 +93,45 @@ button.primary:disabled {
   opacity: 0.6;
 }
 
+/* Flat icon buttons (rail, header). */
 button.icon {
   background: transparent;
-  color: @muted;
+  color: @icon;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 9999px;
   box-shadow: none;
   min-width: 32px;
   min-height: 32px;
   padding: 0;
-  font-size: 16px;
+}
+
+/* Round outlined buttons next to the "Newest" pill. */
+button.round {
+  background: alpha(@text, 0.03);
+  color: @icon;
+  border: 1px solid alpha(@text, 0.06);
+  border-radius: 9999px;
+  box-shadow: none;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+}
+
+button.round image {
+  -gtk-icon-size: 24px;
 }
 
 button.icon:hover,
 button.round:hover {
-  color: @accent;
-  border-color: @accent;
-  background: alpha(@accent, 0.12);
+  background: alpha(@text, 0.08);
 }
 
-/* Round tool button next to the DM search, as in the Figma redesign. */
-button.round {
-  background: alpha(@text, 0.05);
-  color: @muted;
-  border: 1px solid alpha(@text, 0.08);
-  border-radius: 9999px;
-  box-shadow: none;
-  min-width: 36px;
-  min-height: 36px;
-  padding: 0;
-  font-size: 18px;
+windowcontrols > button {
+  color: @icon;
+}
+
+.flipped image {
+  -gtk-icon-transform: scaleX(-1);
 }
 
 /* ---------- Login ---------- */
@@ -112,97 +140,120 @@ button.round {
   background-color: @bg;
 }
 
+.login-controls {
+  margin: 8px;
+}
+
 .card {
   background-color: @bg;
-  border: 1px solid alpha(@accent, 0.35);
-  border-radius: 12px;
+  border: 1px solid alpha(@text, 0.08);
+  border-radius: 16px;
   padding: 32px;
   box-shadow: 0 8px 24px alpha(black, 0.25);
 }
 
-.field-label.required {
-  color: #F23F43;
+.logo {
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 16px;
+  background-color: @accent;
+  color: #FFFFFF;
+  font-weight: 800;
 }
 
-.title {
+/* Scoped to the card: GTK's header bar also labels its title ".title". */
+.card .title {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-.subtitle {
+.card .subtitle {
   color: @muted;
   margin-bottom: 4px;
 }
 
 .field-label {
   color: @muted;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field-label.required {
+  color: #F23F43;
 }
 
 .error-text {
   color: #F23F43;
 }
 
-/* ---------- Server rail ---------- */
+/* ---------- Rail ---------- */
 
 .rail {
   background-color: @rail;
-  padding: 12px;
+  min-width: 78px;
+  padding: 10px 0 14px 0;
 }
 
-.rail .avatar {
+.rail button.icon {
   min-width: 40px;
   min-height: 40px;
-  font-size: 15px;
 }
 
-/* Online dot on our avatar; the border cuts it out of the avatar. */
+.rail button.icon image {
+  -gtk-icon-size: 24px;
+}
+
+/* Home (direct messages), the page on screen: accent on an accent tint,
+ * so it stands out on the light theme too, where every icon is accent. */
+.rail-home {
+  color: @accent;
+  background-color: alpha(@accent, 0.15);
+  border-radius: 9999px;
+  padding: 5px;
+  -gtk-icon-size: 30px;
+}
+
+.rail-divider {
+  background-color: @bg;
+  border-radius: 9999px;
+  min-width: 40px;
+  min-height: 3px;
+}
+
+/* Our avatar in a dark ring, with an online dot cut out of the ring. */
+.profile {
+  background-color: @sidebar;
+  border-radius: 9999px;
+  padding: 8px;
+}
+
 .status-dot {
   background-color: #3BA55C;
-  border: 2px solid @rail;
+  border: 2px solid @sidebar;
   border-radius: 9999px;
-  min-width: 10px;
-  min-height: 10px;
-}
-
-/* Circle that becomes a rounded square on hover/selection, like Discord. */
-.rail-item {
-  min-width: 48px;
-  min-height: 48px;
-  border-radius: 24px;
-  background-color: @surface;
-  color: @text;
-  font-weight: 800;
-  transition: all 150ms ease-out;
-}
-
-.rail-item:hover,
-.rail-item.active {
-  border-radius: 16px;
-  background-color: @accent;
-  color: #FFFFFF;
+  min-width: 9px;
+  min-height: 9px;
 }
 
 /* ---------- Sidebar ---------- */
 
 .sidebar {
   background-color: @sidebar;
-  min-width: 260px;
+  min-width: 263px;
 }
 
 .tabs {
   background-color: @bg;
   min-height: 46px;
-  box-shadow: 0 2px 2px alpha(black, 0.15);
+  padding: 0 11px;
+  box-shadow: 0 2px 1px alpha(black, 0.25);
 }
 
 .tab {
   color: alpha(@text, 0.6);
   font-weight: 600;
-  padding: 6px 24px;
   border-radius: 6px;
+  margin: 6px 0;
 }
 
 .tab.active {
@@ -211,47 +262,63 @@ button.round {
 }
 
 .sidebar-tools {
-  padding: 12px 10px;
+  padding: 10px 11px 8px 11px;
+}
+
+.pill {
+  background-color: alpha(@text, 0.03);
+  border: 1px solid alpha(@text, 0.06);
+  border-radius: 9999px;
+  color: alpha(@text, 0.6);
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.pill image {
+  color: @icon;
+  -gtk-icon-size: 20px;
+}
+
+.pill-label {
+  font-size: 13px;
+  font-weight: 600;
 }
 
 entry.search {
   min-height: 36px;
-  background-color: alpha(@text, 0.05);
+  margin: 0 11px 8px 11px;
 }
 
 list.conversations {
   background: transparent;
-  padding: 0 8px;
+  padding: 0 11px;
 }
 
 list.conversations > row {
-  color: @muted;
-  border: 1px solid transparent;
+  color: alpha(@text, 0.6);
   border-radius: 9999px;
-  padding: 4px 12px 4px 4px;
+  padding: 3px 12px 3px 3px;
   margin: 1px 0;
-}
-
-.dm-name {
-  font-weight: 600;
 }
 
 list.conversations > row:hover {
   color: @text;
-  background-color: alpha(@accent, 0.12);
-  border-color: alpha(@accent, 0.5);
+  background-color: alpha(@text, 0.05);
 }
 
 list.conversations > row:selected {
   color: @text;
-  background-color: alpha(@accent, 0.22);
-  border-color: @accent;
+  background-color: alpha(@accent, 0.15);
 }
 
 /* Unread conversation: bright, bold name. */
 list.conversations > row.unread {
   color: @text;
   font-weight: 800;
+}
+
+.dm-name {
+  font-weight: 600;
 }
 
 /* ---------- Avatars ---------- */
@@ -261,9 +328,14 @@ list.conversations > row.unread {
   color: #FFFFFF;
   font-weight: 700;
   border-radius: 9999px;
-  min-width: 32px;
-  min-height: 32px;
-  font-size: 13px;
+  min-width: 35px;
+  min-height: 35px;
+}
+
+.chat-header .avatar {
+  min-width: 24px;
+  min-height: 24px;
+  font-size: 11px;
 }
 
 /* ---------- Chat area ---------- */
@@ -272,30 +344,34 @@ list.conversations > row.unread {
 .chat-header {
   background-color: @rail;
   min-height: 46px;
-  padding: 0 16px;
+  padding: 0 8px 0 14px;
 }
 
-.chat-header .avatar {
-  min-width: 26px;
-  min-height: 26px;
-  font-size: 12px;
+.chat-header button.icon {
+  min-width: 30px;
+  min-height: 30px;
+}
+
+.chat-header button.icon image {
+  -gtk-icon-size: 20px;
 }
 
 .chat-title {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .empty {
-  color: @muted;
+  color: alpha(@text, 0.6);
+  font-weight: 600;
 }
 
 list.messages {
   background: transparent;
-  padding: 8px 0 16px 0;
+  padding: 8px 0;
 }
 
 list.messages > row {
-  padding: 2px 16px;
+  padding: 2px 15px;
 }
 
 .date-pill {
@@ -303,7 +379,7 @@ list.messages > row {
   color: alpha(@text, 0.7);
   border-radius: 6px;
   padding: 2px 8px;
-  margin: 8px 0;
+  margin: 8px 0 12px 0;
   font-size: 11px;
   font-weight: 600;
 }
@@ -338,11 +414,20 @@ list.messages > row {
 }
 
 .composer-box {
-  padding: 4px 16px 16px 16px;
+  padding: 4px 15px 14px 15px;
 }
 
 entry.composer {
   min-height: 44px;
+  padding: 0 12px;
+}
+
+entry.composer > image {
+  -gtk-icon-size: 24px;
+}
+
+entry.composer > image.left {
+  margin-right: 10px;
 }
 
 /* ---------- Scrollbars ---------- */
@@ -352,5 +437,5 @@ scrollbar slider {
 }
 
 scrollbar slider:hover {
-  background-color: @accent;
+  background-color: alpha(@muted, 0.8);
 }

@@ -1,17 +1,23 @@
-//! Main screen, modeled on the "Messages" view of the Discord redesign
-//! community file in Figma, with our palette and iMessage-style bubbles:
+//! Main screen, after the "Messages" view of the Discord redesign community
+//! file in Figma (node 1:4272), with our palette and iMessage-style bubbles:
 //!
 //! ```text
-//! ┌──────┬───────────────────────┬───────────────────────────────────┐
-//! │ (vc) │      [Messages]       │ (b) bob                   header  │
-//! │      │ (🔍 find or start) (+)├───────────────────────────────────┤
-//! │      │ ((b) bob            ) │         [November 17, 2026]       │
-//! │      │ ((c) carol          ) │ (hey alice!)                      │
-//! │      │                       │                    (hi bob, sup?) │
-//! │  ☀   │                       │                                   │
-//! │ (a)• │                       │ (Message @bob)          composer  │
-//! └──────┴───────────────────────┴───────────────────────────────────┘
+//! ┌────┬────────────────────────┬──────────────────────────────────────────┐
+//! │ 🔍 │ [Messages]   Friends   │ ◫ (b) bob          📞 🎥 🔕 📌 🔍 ◫  – × │
+//! │ 💬 │ (⇅ Newest     ) (🔍)(+) ├──────────────────────────────────────────┤
+//! │ ── │ [find or start a chat] │            [November 17, 2026]           │
+//! │ ⊞  │ ((b) bob             ) │ (hey alice!)                             │
+//! │    │ ((c) carol           ) │                          (hi bob, sup?) │
+//! │ ☀  │                        │                                          │
+//! │(a)•│                        │ (⊕ Message @bob                      ☺) │
+//! └────┴────────────────────────┴──────────────────────────────────────────┘
 //! ```
+//!
+//! The window has no title bar: the tab bar and the chat header move it, and
+//! the header carries the window controls, as in the design.
+//!
+//! Icons the app has no feature for yet (calls, pins, servers...) stay in
+//! place so the layout matches the design; their tooltips say so.
 //!
 //! Each conversation is keyed by the contact's bare JID and owns a sidebar
 //! row plus a message list in a [`gtk::Stack`], so incoming messages land in
@@ -59,78 +65,105 @@ impl Chat {
     pub fn new(me: Jid, commands: UnboundedSender<Command>, theme: Theme) -> Rc<Chat> {
         let my_name = me.local.clone().unwrap_or_default();
 
-        // ── Server rail: home on top, theme switch and our avatar at the
-        // bottom. ponytail: only "home" (direct messages); servers and
-        // channels need group chat (XEP-0045), which the server lacks.
-        let home = gtk::Label::builder()
-            .label("vc")
-            .css_classes(["rail-item", "active"])
+        // ── Rail: search, home (direct messages) and servers on top; theme
+        // switch and our avatar at the bottom, where the design has the inbox
+        // and the profile. ponytail: no servers; they need group chat
+        // (XEP-0045), which the server lacks.
+        let find_icon = icon_button("vc-search-symbolic", "Find or start a conversation");
+        let home = gtk::Image::builder()
+            .icon_name("vc-messages-symbolic")
+            .css_classes(["rail-home"])
             .tooltip_text("Direct Messages")
             .build();
-        let theme_button = gtk::Button::builder()
-            .label(theme_icon(&theme))
-            .css_classes(["icon"])
-            .tooltip_text("Toggle light/dark theme")
+        let divider = gtk::Box::builder()
+            .css_classes(["rail-divider"])
             .halign(gtk::Align::Center)
             .build();
-        let my_avatar = gtk::Overlay::builder()
-            .child(&avatar(&my_name))
-            .tooltip_text(format!("{me}\nOnline"))
-            .halign(gtk::Align::Center)
-            .build();
-        my_avatar.add_overlay(
+        let servers = icon_button("vc-grid-symbolic", "Servers are not supported yet");
+        let theme_button = icon_button(theme_icon(&theme), "Toggle light/dark theme");
+        let profile = gtk::Overlay::builder().child(&avatar(&my_name)).build();
+        profile.add_overlay(
             &gtk::Box::builder()
                 .css_classes(["status-dot"])
                 .halign(gtk::Align::End)
                 .valign(gtk::Align::End)
                 .build(),
         );
+        let profile_ring = gtk::Box::builder()
+            .css_classes(["profile"])
+            .halign(gtk::Align::Center)
+            .tooltip_text(format!("{me}\nOnline"))
+            .build();
+        profile_ring.append(&profile);
         let rail = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
-            .spacing(12)
+            .spacing(8)
             .css_classes(["rail"])
             .build();
-        rail.append(&home);
+        for widget in [
+            find_icon.upcast_ref::<gtk::Widget>(),
+            home.upcast_ref(),
+            divider.upcast_ref(),
+            servers.upcast_ref(),
+        ] {
+            widget.set_halign(gtk::Align::Center);
+            rail.append(widget);
+        }
         rail.append(&gtk::Box::builder().vexpand(true).build());
+        theme_button.set_halign(gtk::Align::Center);
         rail.append(&theme_button);
-        rail.append(&my_avatar);
+        rail.append(&profile_ring);
 
-        // ── Sidebar: tab bar, DM search/creation and the conversation list.
-        // ponytail: no "Friends" tab; it needs a roster, which the server
-        // does not keep yet.
-        let tabs = gtk::Box::builder().css_classes(["tabs"]).build();
-        tabs.append(
-            &gtk::Label::builder()
-                .label("Messages")
-                .css_classes(["tab", "active"])
-                .hexpand(true)
-                .halign(gtk::Align::Center)
-                .valign(gtk::Align::Center)
-                .build(),
-        );
-
-        let search = gtk::SearchEntry::builder()
-            .placeholder_text("Find or start a chat")
-            .tooltip_text("Type a JID (user@domain) and press Enter")
-            .hexpand(true)
-            .build();
-        let new_chat = gtk::Button::builder()
-            .label("+")
-            .css_classes(["round"])
-            .tooltip_text("Start a conversation")
-            .build();
-        new_chat.connect_clicked({
-            let search = search.clone();
-            move |_| {
-                search.grab_focus();
-            }
-        });
-        let tools = gtk::Box::builder()
+        // ── Sidebar: tab bar, "Newest" pill with search and new-chat
+        // buttons, the JID search they reveal, and the conversation list.
+        // ponytail: "Friends" is only drawn; it needs a roster, which the
+        // server does not keep yet.
+        let tabs = gtk::Box::builder()
+            .homogeneous(true)
             .spacing(8)
+            .css_classes(["tabs"])
+            .build();
+        tabs.append(&tab("Messages", true, "Direct messages"));
+        tabs.append(&tab(
+            "Friends",
+            false,
+            "Friends are not supported yet: the server keeps no roster",
+        ));
+
+        let newest = gtk::Box::builder()
+            .spacing(6)
+            .css_classes(["pill"])
+            .hexpand(true)
+            .tooltip_text("Newest conversations first")
+            .build();
+        newest.append(&gtk::Image::from_icon_name("vc-sort-symbolic"));
+        newest.append(&label("Newest", "pill-label"));
+        let find = round_button("vc-search-symbolic", "Find a conversation");
+        let new_chat = round_button("vc-plus-symbolic", "Start a conversation");
+        let tools = gtk::Box::builder()
+            .spacing(6)
             .css_classes(["sidebar-tools"])
             .build();
-        tools.append(&search);
+        tools.append(&newest);
+        tools.append(&find);
         tools.append(&new_chat);
+
+        let search = gtk::SearchEntry::builder()
+            .placeholder_text("Type a JID (user@domain)")
+            .tooltip_text("Type a JID (user@domain) and press Enter")
+            .build();
+        let search_reveal = gtk::Revealer::builder().child(&search).build();
+        for button in [&find_icon, &find, &new_chat] {
+            let (reveal, search) = (search_reveal.clone(), search.clone());
+            button.connect_clicked(move |_| {
+                reveal.set_reveal_child(true);
+                search.grab_focus();
+            });
+        }
+        search.connect_stop_search(|entry| {
+            entry.set_text("");
+            hide_search(entry);
+        });
 
         let list = gtk::ListBox::builder()
             .css_classes(["conversations"])
@@ -142,31 +175,69 @@ impl Chat {
             .hscrollbar_policy(gtk::PolicyType::Never)
             .build();
 
-        // Explicit `hexpand(false)`: in GTK 4 a child's hexpand (the search
-        // entry) propagates to its parent, and the sidebar would steal half
-        // of the window from the chat area.
+        // Explicit `hexpand(false)`: in GTK 4 a child's hexpand (the "Newest"
+        // pill) propagates to its parent, and the sidebar would steal half of
+        // the window from the chat area.
         let sidebar = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .css_classes(["sidebar"])
             .hexpand(false)
-            .width_request(260)
+            .width_request(263)
             .build();
-        sidebar.append(&tabs);
+        sidebar.append(&gtk::WindowHandle::builder().child(&tabs).build());
         sidebar.append(&tools);
+        sidebar.append(&search_reveal);
         sidebar.append(&list_scroll);
 
         // ── Chat area: header, message pages and composer.
+        let toggle_sidebar = icon_button("vc-sidebar-symbolic", "Show or hide the conversations");
+        toggle_sidebar.connect_clicked({
+            let sidebar = sidebar.clone();
+            move |_| sidebar.set_visible(!sidebar.is_visible())
+        });
         let peer_avatar = avatar("");
         let title = label("", "chat-title");
-        let peer = gtk::Box::builder().spacing(10).visible(false).build();
+        let peer = gtk::Box::builder().spacing(8).visible(false).build();
         peer.append(&peer_avatar);
         peer.append(&title);
-        let header = gtk::Box::builder().css_classes(["chat-header"]).build();
+        let actions = gtk::Box::builder()
+            .spacing(6)
+            .hexpand(true)
+            .halign(gtk::Align::End)
+            .build();
+        for (icon, tooltip) in [
+            ("vc-call-symbolic", "Calls are not supported yet"),
+            ("vc-video-symbolic", "Video calls are not supported yet"),
+            (
+                "vc-muted-symbolic",
+                "Notification settings are not supported yet",
+            ),
+            (
+                "vc-pinned-symbolic",
+                "Pinned messages are not supported yet",
+            ),
+            ("vc-search-symbolic", "Message search is not supported yet"),
+        ] {
+            actions.append(&icon_button(icon, tooltip));
+        }
+        let profile_panel = icon_button(
+            "vc-sidebar-symbolic",
+            "The profile panel is not supported yet",
+        );
+        profile_panel.add_css_class("flipped");
+        actions.append(&profile_panel);
+        let header = gtk::Box::builder()
+            .spacing(8)
+            .css_classes(["chat-header"])
+            .build();
+        header.append(&toggle_sidebar);
         header.append(&peer);
+        header.append(&actions);
+        header.append(&gtk::WindowControls::new(gtk::PackType::End));
 
         let pages = gtk::Stack::builder().vexpand(true).build();
         let empty = gtk::Label::builder()
-            .label("Pick a conversation or start a new one from the search on the left.")
+            .label("Pick a conversation or start a new one with the + button.")
             .css_classes(["empty"])
             .wrap(true)
             .build();
@@ -175,6 +246,9 @@ impl Chat {
         let composer = gtk::Entry::builder()
             .placeholder_text("Pick a conversation")
             .css_classes(["composer"])
+            .primary_icon_name("vc-add-symbolic")
+            .primary_icon_tooltip_text("Attachments are not supported yet")
+            .show_emoji_icon(true)
             .sensitive(false)
             .hexpand(true)
             .build();
@@ -185,7 +259,7 @@ impl Chat {
             .orientation(gtk::Orientation::Vertical)
             .hexpand(true)
             .build();
-        main.append(&header);
+        main.append(&gtk::WindowHandle::builder().child(&header).build());
         main.append(&pages);
         main.append(&composer_box);
 
@@ -217,6 +291,7 @@ impl Chat {
                     chat.select(&jid.bare().to_string());
                     entry.set_text("");
                     entry.remove_css_class("error");
+                    hide_search(entry);
                 }
                 _ => entry.add_css_class("error"),
             }
@@ -236,7 +311,7 @@ impl Chat {
         });
         theme_button.connect_clicked(move |button| {
             theme.toggle();
-            button.set_label(theme_icon(&theme));
+            button.set_icon_name(theme_icon(&theme));
         });
 
         chat
@@ -322,7 +397,8 @@ impl Chat {
             .build();
         // The row's name is how `connect_row_selected` finds the conversation.
         conversation_row.set_widget_name(jid);
-        self.list.append(&conversation_row);
+        // Newest first, as the "Newest" pill says.
+        self.list.prepend(&conversation_row);
 
         let messages = gtk::ListBox::builder()
             .css_classes(["messages"])
@@ -370,6 +446,13 @@ impl Conversation {
             }
         }
         self.messages.append(message);
+    }
+}
+
+/// Hides the JID search revealer around `entry`.
+fn hide_search(entry: &gtk::SearchEntry) {
+    if let Some(reveal) = entry.parent().and_downcast::<gtk::Revealer>() {
+        reveal.set_reveal_child(false);
     }
 }
 
@@ -427,6 +510,35 @@ fn row(child: &impl IsA<gtk::Widget>) -> gtk::ListBoxRow {
         .build()
 }
 
+/// Flat icon button; its size comes from the stylesheet (`-gtk-icon-size`).
+fn icon_button(icon: &str, tooltip: &str) -> gtk::Button {
+    gtk::Button::builder()
+        .icon_name(icon)
+        .css_classes(["icon"])
+        .tooltip_text(tooltip)
+        .valign(gtk::Align::Center)
+        .build()
+}
+
+/// Round outlined icon button, as next to the "Newest" pill.
+fn round_button(icon: &str, tooltip: &str) -> gtk::Button {
+    let button = icon_button(icon, tooltip);
+    button.set_css_classes(&["round"]);
+    button
+}
+
+fn tab(text: &str, active: bool, tooltip: &str) -> gtk::Label {
+    let tab = gtk::Label::builder()
+        .label(text)
+        .css_classes(["tab"])
+        .tooltip_text(tooltip)
+        .build();
+    if active {
+        tab.add_css_class("active");
+    }
+    tab
+}
+
 /// Round avatar with the name's first letter (Discord-like placeholder).
 fn avatar(name: &str) -> gtk::Label {
     gtk::Label::builder()
@@ -455,7 +567,11 @@ fn label(text: &str, class: &str) -> gtk::Label {
 
 /// The button shows the theme it switches *to*.
 fn theme_icon(theme: &Theme) -> &'static str {
-    if theme.is_dark() { "☀" } else { "☾" }
+    if theme.is_dark() {
+        "weather-clear-symbolic"
+    } else {
+        "weather-clear-night-symbolic"
+    }
 }
 
 /// `bob` from `bob@localhost`.

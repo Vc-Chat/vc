@@ -9,7 +9,7 @@ use xmpp_core::Jid;
 use crate::net::Credentials;
 
 pub struct Login {
-    pub root: gtk::Box,
+    pub root: gtk::Overlay,
     jid: gtk::Entry,
     password: gtk::PasswordEntry,
     button: gtk::Button,
@@ -34,8 +34,16 @@ impl Login {
             .margin_top(8)
             .build();
 
+        // Brand mark.
+        let logo = gtk::Label::builder()
+            .label("vc")
+            .css_classes(["logo"])
+            .halign(gtk::Align::Center)
+            .margin_bottom(8)
+            .build();
         let header = gtk::Box::new(gtk::Orientation::Vertical, 8);
         header.set_margin_bottom(4);
+        header.append(&logo);
         for (text, class) in [
             ("Welcome back!", "title"),
             ("We're so excited to see you again!", "subtitle"),
@@ -55,18 +63,32 @@ impl Login {
             .css_classes(["card"])
             .build();
         card.append(&header);
-        card.append(&field("JID (USER@DOMAIN)", &jid));
-        card.append(&field("PASSWORD", &password));
+        card.append(&field("JID (user@domain)", &jid));
+        card.append(&field("Password", &password));
         card.append(&error);
         card.append(&button);
 
-        let root = gtk::Box::builder()
+        let page = gtk::Box::builder()
             .css_classes(["login-page"])
             .hexpand(true)
             .vexpand(true)
             .build();
-        root.append(&card);
+        page.append(&card);
         card.set_hexpand(true);
+
+        // The window has no title bar (see chat.rs): the page moves it and
+        // carries the window controls.
+        let root = gtk::Overlay::builder()
+            .child(&gtk::WindowHandle::builder().child(&page).build())
+            .build();
+        root.add_overlay(
+            &gtk::WindowControls::builder()
+                .side(gtk::PackType::End)
+                .halign(gtk::Align::End)
+                .valign(gtk::Align::Start)
+                .css_classes(["login-controls"])
+                .build(),
+        );
 
         Rc::new(Login {
             root,
@@ -139,8 +161,7 @@ impl Login {
     }
 }
 
-/// Small uppercase label with a red "required" asterisk above an input, as in
-/// Discord's forms.
+/// Label with a red "required" asterisk above an input.
 fn field(title: &str, input: &impl IsA<gtk::Widget>) -> gtk::Box {
     // No wrapping here: a wrapping label in a horizontal box confuses GTK's
     // height-for-width measuring.

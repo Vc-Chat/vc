@@ -40,6 +40,7 @@ const DARK: &str = "
 @define-color surface #383A40;
 @define-color text #DBDEE1;
 @define-color muted #949BA4;
+@define-color icon alpha(@text, 0.6);
 ";
 const LIGHT: &str = "
 @define-color bg #FFFFFF;
@@ -48,6 +49,7 @@ const LIGHT: &str = "
 @define-color surface #EBEDEF;
 @define-color text #313338;
 @define-color muted #5C5E66;
+@define-color icon @accent;
 ";
 
 /// Rules shared by both themes; they only reference the named colors above.
@@ -63,13 +65,20 @@ struct ThemeState {
 }
 
 impl Theme {
-    /// Installs our stylesheet for the whole display, starting in dark mode
-    /// (Discord's default).
+    /// Installs our stylesheet and icons for the whole display, starting in
+    /// dark mode (Discord's default).
     /// ponytail: does not follow the OS light/dark setting; GTK only exposes
     /// it from 4.20 (`gtk-interface-color-scheme`), above what CI has.
     fn new() -> Theme {
         let provider = gtk::CssProvider::new();
         let display = gdk::Display::default().expect("no graphical display available");
+        // Icons from the Figma design, as symbolic icons GTK recolors with
+        // the palette (`@icon`). They sit in a hicolor theme layout: GTK only
+        // recolors symbolic icons found through a theme. ponytail: loaded from the source tree, so the binary
+        // only finds them where it was built; embed them as a GResource when
+        // the app gets packaged.
+        gtk::IconTheme::for_display(&display)
+            .add_search_path(concat!(env!("CARGO_MANIFEST_DIR"), "/icons"));
         gtk::style_context_add_provider_for_display(
             &display,
             &provider,
@@ -158,6 +167,8 @@ fn build_window(app: &gtk::Application) {
         .title("vc")
         .default_width(1200)
         .default_height(760)
+        // No title bar: the screens draw their own, as in the design.
+        .titlebar(&gtk::Box::new(gtk::Orientation::Horizontal, 0))
         .child(&stack)
         .build()
         .present();
